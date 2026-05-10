@@ -73,4 +73,9 @@ export const skinAPI = {
   getCurrentSkin: () => api.get('/skins/current'),
 };
 
+export const leaderboardAPI = {
+  getLeaderboard: (type = 'levels') => api.get('/leaderboard', { params: { type } }),
+  getLeaderboardTypes: () => api.get('/leaderboard/types'),
+};
+
 export default api;

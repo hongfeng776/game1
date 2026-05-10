@@ -785,6 +785,105 @@ const ACHIEVEMENTS = {
   }
 };
 
+const ALL_DAILY_TASKS = [
+  {
+    id: 'complete_level',
+    name: '勇者试炼',
+    description: '完成任意1个关卡',
+    icon: '🎯',
+    target: 1,
+    reward: {
+      coins: 100,
+      experience: 50
+    },
+    trackType: 'level_complete'
+  },
+  {
+    id: 'complete_level_3',
+    name: '挑战极限',
+    description: '完成任意3个关卡',
+    icon: '🏆',
+    target: 3,
+    reward: {
+      coins: 250,
+      experience: 120
+    },
+    trackType: 'level_complete'
+  },
+  {
+    id: 'use_item',
+    name: '道具达人',
+    description: '在游戏中使用任意1个道具',
+    icon: '🧪',
+    target: 1,
+    reward: {
+      coins: 80,
+      experience: 30
+    },
+    trackType: 'item_use'
+  },
+  {
+    id: 'use_item_3',
+    name: '道具大师',
+    description: '在游戏中使用任意3个道具',
+    icon: '💎',
+    target: 3,
+    reward: {
+      coins: 200,
+      experience: 80
+    },
+    trackType: 'item_use'
+  },
+  {
+    id: 'daily_signin',
+    name: '每日报到',
+    description: '完成当日签到',
+    icon: '📅',
+    target: 1,
+    reward: {
+      coins: 50,
+      experience: 20
+    },
+    trackType: 'signin'
+  },
+  {
+    id: 'collect_coins',
+    name: '金币收集者',
+    description: '在游戏中获得200金币',
+    icon: '💰',
+    target: 200,
+    reward: {
+      coins: 100,
+      experience: 40
+    },
+    trackType: 'coins_earned'
+  },
+  {
+    id: 'gain_experience',
+    name: '经验积累者',
+    description: '在游戏中获得100经验',
+    icon: '⚡',
+    target: 100,
+    reward: {
+      coins: 120,
+      experience: 50
+    },
+    trackType: 'exp_earned'
+  },
+  {
+    id: 'perfect_level',
+    name: '完美通关',
+    description: '完成任意1个关卡并获得3星评价',
+    icon: '⭐',
+    target: 1,
+    reward: {
+      coins: 150,
+      experience: 80
+    },
+    trackType: 'perfect_level'
+  }
+];
+
 const DAILY_TASKS = [
   {
     id: 'complete_level',
@@ -839,12 +938,55 @@ function getDefaultDailyTasks() {
   }));
 }
 
+function shuffleArray(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function getRandomDailyTasks(count = 3) {
+  const shuffled = shuffleArray(ALL_DAILY_TASKS);
+  const selected = [];
+  const usedTypes = new Set();
+  
+  for (const task of shuffled) {
+    if (selected.length >= count) break;
+    
+    if (!usedTypes.has(task.trackType)) {
+      selected.push(task);
+      usedTypes.add(task.trackType);
+    }
+  }
+  
+  while (selected.length < count) {
+    const available = shuffled.filter(t => !selected.includes(t));
+    if (available.length === 0) break;
+    selected.push(available[Math.floor(Math.random() * available.length)]);
+  }
+  
+  return selected;
+}
+
 function checkAndResetDailyTasks(user) {
   const today = getTodayDate();
   
   if (!user.dailyTasks || !user.lastDailyTaskDate || user.lastDailyTaskDate !== today) {
     user.dailyTasks = getDefaultDailyTasks();
     user.lastDailyTaskDate = today;
+    user.dailyTaskRefreshCount = 1;
+    user.lastDailyTaskRefreshDate = today;
+  }
+  
+  if (!user.dailyTaskRefreshCount || user.dailyTaskRefreshCount === undefined) {
+    user.dailyTaskRefreshCount = 1;
+  }
+  
+  if (!user.lastDailyTaskRefreshDate || user.lastDailyTaskRefreshDate !== today) {
+    user.dailyTaskRefreshCount = 1;
+    user.lastDailyTaskRefreshDate = today;
   }
   
   return user.dailyTasks;
@@ -908,7 +1050,9 @@ const mockData = {
     currentSkin: 'default',
     unlockedSkins: ['default'],
     dailyTasks: null,
-    lastDailyTaskDate: null
+    lastDailyTaskDate: null,
+    dailyTaskRefreshCount: 1,
+    lastDailyTaskRefreshDate: null
   },
   levels: [],
   chapters: JSON.parse(JSON.stringify(CHAPTERS)),
@@ -2142,6 +2286,11 @@ app.get('/api/daily-tasks', (req, res) => {
     success: true,
     data: {
       tasks,
+      refreshInfo: {
+        available: user.dailyTaskRefreshCount > 0,
+        remaining: user.dailyTaskRefreshCount,
+        max: 1
+      },
       summary: {
         total: tasks.length,
         completed: completedCount,
@@ -2155,6 +2304,102 @@ app.get('/api/daily-tasks', (req, res) => {
         coins: user.coins,
         experience: user.experience,
         level: user.level
+      }
+    }
+  });
+});
+
+app.post('/api/daily-tasks/refresh', (req, res) => {
+  const user = mockData.user;
+  checkAndResetDailyTasks(user);
+  
+  if (user.dailyTaskRefreshCount <= 0) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '今日刷新次数已用完' 
+    });
+  }
+  
+  const claimedIds = user.dailyTasks.filter(t => t.isClaimed).map(t => t.id);
+  
+  const claimedTasks = user.dailyTasks.filter(t => t.isClaimed);
+  const unclaimedTasks = user.dailyTasks.filter(t => !t.isClaimed);
+  
+  if (unclaimedTasks.length === 0) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '没有可刷新的任务，所有任务已领取' 
+    });
+  }
+  
+  const allIds = ALL_DAILY_TASKS.map(t => t.id);
+  const currentIds = user.dailyTasks.map(t => t.id);
+  const availableIds = allIds.filter(id => !currentIds.includes(id));
+  
+  if (availableIds.length === 0) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '没有更多任务可以刷新' 
+    });
+  }
+  
+  const randomAvailableId = availableIds[Math.floor(Math.random() * availableIds.length)];
+  const newTaskTemplate = ALL_DAILY_TASKS.find(t => t.id === randomAvailableId);
+  
+  const today = getTodayDate();
+  const newTask = {
+    ...newTaskTemplate,
+    progress: 0,
+    isCompleted: false,
+    isClaimed: false,
+    lastUpdateDate: today
+  };
+  
+  const tasksToRefresh = unclaimedTasks.filter(t => !t.isCompleted);
+  
+  if (tasksToRefresh.length === 0) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '没有可刷新的任务，未完成的任务已不存在' 
+    });
+  }
+  
+  const randomIndex = Math.floor(Math.random() * tasksToRefresh.length);
+  const taskToReplace = tasksToRefresh[randomIndex];
+  const replaceIndex = user.dailyTasks.findIndex(t => t.id === taskToReplace.id);
+  
+  const oldTask = user.dailyTasks[replaceIndex];
+  user.dailyTasks[replaceIndex] = newTask;
+  
+  user.dailyTaskRefreshCount--;
+  
+  const tasks = user.dailyTasks;
+  const completedCount = tasks.filter(t => t.isCompleted).length;
+  const claimedCount = tasks.filter(t => t.isClaimed).length;
+  const totalReward = tasks.reduce((sum, t) => sum + t.reward.coins, 0);
+  const totalExp = tasks.reduce((sum, t) => sum + t.reward.experience, 0);
+  const earnedCoins = tasks.filter(t => t.isClaimed).reduce((sum, t) => sum + t.reward.coins, 0);
+  const earnedExp = tasks.filter(t => t.isClaimed).reduce((sum, t) => sum + t.reward.experience, 0);
+  
+  res.json({
+    success: true,
+    data: {
+      tasks,
+      oldTask,
+      newTask,
+      refreshInfo: {
+        available: user.dailyTaskRefreshCount > 0,
+        remaining: user.dailyTaskRefreshCount,
+        max: 1
+      },
+      summary: {
+        total: tasks.length,
+        completed: completedCount,
+        claimed: claimedCount,
+        totalReward,
+        totalExp,
+        earnedCoins,
+        earnedExp
       }
     }
   });

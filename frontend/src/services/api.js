@@ -83,6 +83,7 @@ export const dailyTasksAPI = {
   getTasks: () => api.get('/daily-tasks'),
   claimReward: (taskId) => api.post('/daily-tasks/claim', { taskId }),
   claimAllRewards: () => api.post('/daily-tasks/claim-all'),
+  refreshTask: () => api.post('/daily-tasks/refresh'),
 };
 
 export default api;

@@ -1029,7 +1029,16 @@ const ENDLESS_CONFIG = {
     levelMultiplier: 1.1,
     cycleBonus: 500,
     timeBonusPerSecond: 0,
-    perfectBonus: 50
+    perfectBonus: 50,
+    gradients: [
+      { minLevel: 1, maxLevel: 10, multiplier: 1.0, label: '新手期' },
+      { minLevel: 11, maxLevel: 20, multiplier: 1.5, label: '进阶期' },
+      { minLevel: 21, maxLevel: 30, multiplier: 2.0, label: '成熟期' },
+      { minLevel: 31, maxLevel: 50, multiplier: 2.5, label: '精英期' },
+      { minLevel: 51, maxLevel: 75, multiplier: 3.5, label: '大师期' },
+      { minLevel: 76, maxLevel: 100, multiplier: 5.0, label: '传奇期' },
+      { minLevel: 101, maxLevel: Infinity, multiplier: 8.0, label: '神话期' }
+    ]
   },
   milestones: [
     { level: 5, title: '初出茅庐', message: '恭喜通过第5关！你已经掌握了基本技巧！', icon: '🌟' },
@@ -3104,9 +3113,20 @@ function getEndlessMonsters(levelIndex, baseMonsters) {
   }));
 }
 
+function getScoreGradient(levelIndex) {
+  const gradients = ENDLESS_CONFIG.score.gradients;
+  for (const gradient of gradients) {
+    if (levelIndex >= gradient.minLevel && levelIndex <= gradient.maxLevel) {
+      return gradient;
+    }
+  }
+  return gradients[gradients.length - 1];
+}
+
 function calculateLevelScore(levelIndex, isPerfect = false) {
   const config = ENDLESS_CONFIG.score;
   const cycles = Math.floor((levelIndex - 1) / Object.keys(LEVEL_MAPS).length);
+  const gradient = getScoreGradient(levelIndex);
   
   let score = config.baseScore;
   score = score * Math.pow(config.levelMultiplier, levelIndex - 1);
@@ -3114,6 +3134,8 @@ function calculateLevelScore(levelIndex, isPerfect = false) {
   if (config.cycleBonus > 0 && cycles > 0) {
     score += cycles * config.cycleBonus;
   }
+  
+  score = score * gradient.multiplier;
   
   if (isPerfect && config.perfectBonus > 0) {
     score += config.perfectBonus;
@@ -3302,6 +3324,8 @@ app.post('/api/endless/complete', (req, res) => {
   const milestone = getMilestone(levelIndex);
   const isSpecialMilestone = !!milestone;
   
+  const scoreGradient = getScoreGradient(levelIndex);
+  
   user.hp = user.maxHp;
   
   res.json({
@@ -3317,6 +3341,7 @@ app.post('/api/endless/complete', (req, res) => {
       isSpecialMilestone,
       specialMilestone: milestone,
       levelScore,
+      scoreGradient,
       newHighest,
       isNewRecord,
       taskUpdated,

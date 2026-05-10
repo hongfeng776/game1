@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { levelsAPI, inventoryAPI } from '../services/api'
 import '../styles/Levels.css'
@@ -17,6 +17,7 @@ function Levels() {
   const [saving, setSaving] = useState(false)
   const [difficulties, setDifficulties] = useState([])
   const [selectedDifficulty, setSelectedDifficulty] = useState(DEFAULT_DIFFICULTY)
+  const modalOpeningRef = useRef(false)
 
   useEffect(() => {
     levelsAPI.getLevels().then(res => {
@@ -43,11 +44,23 @@ function Levels() {
     }
   }, [])
 
+  const handleCloseModal = useCallback(() => {
+    setShowModal(false);
+    setSelectedLevel(null);
+    setSelectedItems([]);
+    modalOpeningRef.current = false;
+  }, []);
+
   const handleLevelClick = (level) => {
-    if (level.isUnlocked) {
+    if (level.isUnlocked && !showModal && !modalOpeningRef.current) {
+      modalOpeningRef.current = true;
       setSelectedLevel(level)
+      setSelectedDifficulty(DEFAULT_DIFFICULTY)
       setShowModal(true)
       loadInventory()
+      setTimeout(() => {
+        modalOpeningRef.current = false;
+      }, 100);
     }
   }
 
@@ -155,11 +168,11 @@ function Levels() {
         </div>
 
         {showModal && selectedLevel && (
-          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+          <div className="modal-overlay" onClick={handleCloseModal}>
             <div className="modal card level-modal" onClick={e => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>{selectedLevel.name}</h2>
-                <button className="modal-close" onClick={() => setShowModal(false)}>
+                <button className="modal-close" onClick={handleCloseModal}>
                   ✕
                 </button>
               </div>
@@ -293,7 +306,7 @@ function Levels() {
                 )}
               </div>
               <div className="modal-footer">
-                <button className="btn btn-outline" onClick={() => setShowModal(false)}>
+                <button className="btn btn-outline" onClick={handleCloseModal}>
                   取消
                 </button>
                 <button

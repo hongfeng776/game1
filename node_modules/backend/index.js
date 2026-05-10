@@ -173,28 +173,115 @@ function getDefaultMonsters(levelId) {
   return monsters;
 }
 
-function applyDifficultyToMonsters(monsters, difficulty) {
+function applyDifficultyToMonsters(monsters, difficulty, levelId) {
   const config = DIFFICULTY_CONFIG[difficulty] || DIFFICULTY_CONFIG.normal;
+  const level = LEVEL_MAPS[levelId];
   
-  const adjustedMonsterCount = Math.ceil(monsters.length * config.monsterMultiplier);
+  if (!level || monsters.length === 0) {
+    return monsters.map(monster => ({
+      ...monster,
+      moveInterval: Math.floor(monster.baseMoveInterval / config.monsterSpeedMultiplier)
+    }));
+  }
   
-  let adjustedMonsters = [];
+  const baseMonsterCount = monsters.length;
+  const adjustedMonsterCount = Math.ceil(baseMonsterCount * config.monsterMultiplier);
+  const maxMonsterCount = Math.floor(level.width * level.height * 0.15);
+  const finalMonsterCount = Math.min(adjustedMonsterCount, maxMonsterCount);
   
-  if (config.monsterMultiplier > 1) {
-    adjustedMonsters = [...monsters];
-    for (let i = monsters.length; i < adjustedMonsterCount && adjustedMonsters.length < adjustedMonsterCount; i++) {
-      const originalMonster = monsters[i % monsters.length];
-      adjustedMonsters.push({
-        ...originalMonster,
-        id: `monster-${i}`,
-        x: originalMonster.x + 1,
-        y: originalMonster.y + 1
-      });
+  let adjustedMonsters = [...monsters];
+  const usedPositions = new Set();
+  monsters.forEach(m => usedPositions.add(`${m.x}-${m.y}`));
+  
+  if (config.monsterMultiplier > 1 && baseMonsterCount > 0) {
+    const positionsToAvoid = new Set();
+    positionsToAvoid.add(`${level.startPos.x}-${level.startPos.y}`);
+    positionsToAvoid.add(`${level.endPos.x}-${level.endPos.y}`);
+    
+    for (let i = 0; i < 3; i++) {
+      positionsToAvoid.add(`${level.startPos.x + i}-${level.startPos.y}`);
+      positionsToAvoid.add(`${level.startPos.x - i}-${level.startPos.y}`);
+      positionsToAvoid.add(`${level.startPos.x}-${level.startPos.y + i}`);
+      positionsToAvoid.add(`${level.startPos.x}-${level.startPos.y - i}`);
+      positionsToAvoid.add(`${level.endPos.x + i}-${level.endPos.y}`);
+      positionsToAvoid.add(`${level.endPos.x - i}-${level.endPos.y}`);
+      positionsToAvoid.add(`${level.endPos.x}-${level.endPos.y + i}`);
+      positionsToAvoid.add(`${level.endPos.x}-${level.endPos.y - i}`);
+    }
+    
+    const directionOffsets = [
+      { dx: 1, dy: 0 },
+      { dx: -1, dy: 0 },
+      { dx: 0, dy: 1 },
+      { dx: 0, dy: -1 },
+      { dx: 1, dy: 1 },
+      { dx: -1, dy: -1 },
+      { dx: 1, dy: -1 },
+      { dx: -1, dy: 1 }
+    ];
+    
+    let monsterIndex = baseMonsterCount;
+    let attempts = 0;
+    const maxAttempts = finalMonsterCount * 10;
+    
+    while (adjustedMonsters.length < finalMonsterCount && attempts < maxAttempts) {
+      const originalMonster = adjustedMonsters[monsterIndex % baseMonsterCount];
+      let placed = false;
+      
+      for (const offset of directionOffsets) {
+        if (placed) break;
+        
+        const newX = originalMonster.x + offset.dx;
+        const newY = originalMonster.y + offset.dy;
+        const posKey = `${newX}-${newY}`;
+        
+        if (newX >= 0 && newX < level.width && 
+            newY >= 0 && newY < level.height &&
+            !usedPositions.has(posKey) && 
+            !positionsToAvoid.has(posKey)) {
+          const tile = level.map[newY][newX];
+          if (tile === 0 || tile === 2 || tile === 3) {
+            adjustedMonsters.push({
+              ...originalMonster,
+              id: `monster-${monsterIndex}`,
+              x: newX,
+              y: newY,
+              direction: Math.floor(Math.random() * 4)
+            });
+            usedPositions.add(posKey);
+            placed = true;
+            monsterIndex++;
+          }
+        }
+      }
+      
+      if (!placed) {
+        for (let y = 1; y < level.height - 1 && !placed; y++) {
+          for (let x = 1; x < level.width - 1 && !placed; x++) {
+            const posKey = `${x}-${y}`;
+            if (!usedPositions.has(posKey) && !positionsToAvoid.has(posKey)) {
+              const tile = level.map[y][x];
+              if (tile === 0) {
+                adjustedMonsters.push({
+                  ...originalMonster,
+                  id: `monster-${monsterIndex}`,
+                  x: x,
+                  y: y,
+                  direction: Math.floor(Math.random() * 4)
+                });
+                usedPositions.add(posKey);
+                placed = true;
+                monsterIndex++;
+              }
+            }
+          }
+        }
+      }
+      
+      attempts++;
     }
   } else if (config.monsterMultiplier < 1) {
-    adjustedMonsters = monsters.slice(0, adjustedMonsterCount);
-  } else {
-    adjustedMonsters = [...monsters];
+    adjustedMonsters = monsters.slice(0, finalMonsterCount);
   }
   
   return adjustedMonsters.map(monster => ({
@@ -1066,7 +1153,7 @@ app.get('/api/level/map/:levelId', (req, res) => {
   
   const difficultyConfig = DIFFICULTY_CONFIG[difficulty] || DIFFICULTY_CONFIG.normal;
   const baseMonsters = getDefaultMonsters(levelId);
-  const monsters = applyDifficultyToMonsters(baseMonsters, difficulty);
+  const monsters = applyDifficultyToMonsters(baseMonsters, difficulty, levelId);
   
   const adjustedMap = {
     ...map,

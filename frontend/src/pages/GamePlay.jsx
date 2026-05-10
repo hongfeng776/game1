@@ -4,6 +4,7 @@ import { levelsAPI, inventoryAPI } from '../services/api';
 import { useGame } from '../hooks/useGame';
 import { useGameContext } from '../context/GameContext';
 import GameMap from '../components/GameMap';
+import { getSkinIcon } from '../config/skinConfig';
 import '../styles/GamePlay.css';
 
 const ITEM_DISPLAY = {
@@ -443,6 +444,7 @@ function GamePlay() {
             playerPos={game.playerPos}
             damageFlash={game.damageFlash}
             monsters={game.monsters}
+            skinIcon={getSkinIcon(user?.currentSkin)}
           />
 
           <div className="game-action-buttons">

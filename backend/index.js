@@ -596,6 +596,148 @@ const ITEMS = {
   }
 };
 
+const SKINS = {
+  default: {
+    id: 'default',
+    name: '经典法师',
+    icon: '🧙',
+    description: '初始皮肤，经典的法师造型',
+    rarity: 'common',
+    type: 'common',
+    price: 0,
+    unlocked: true,
+    color: '#667eea',
+    isSpecial: false
+  },
+  fire_mage: {
+    id: 'fire_mage',
+    name: '火焰法师',
+    icon: '🧙‍♂️',
+    description: '炽热的火焰法师，全身散发着火焰的气息',
+    rarity: 'common',
+    type: 'common',
+    price: 500,
+    unlocked: false,
+    color: '#FF6B6B',
+    isSpecial: false
+  },
+  ice_mage: {
+    id: 'ice_mage',
+    name: '冰霜法师',
+    icon: '🧙‍♀️',
+    description: '冰冷的冰霜法师，散发着寒气',
+    rarity: 'common',
+    type: 'common',
+    price: 600,
+    unlocked: false,
+    color: '#4ECDC4',
+    isSpecial: false
+  },
+  thunder_mage: {
+    id: 'thunder_mage',
+    name: '雷电法师',
+    icon: '⚡',
+    description: '掌控雷电的法师，身绕电光',
+    rarity: 'common',
+    type: 'common',
+    price: 800,
+    unlocked: false,
+    color: '#FFD93D',
+    isSpecial: false
+  },
+  nature_mage: {
+    id: 'nature_mage',
+    name: '自然法师',
+    icon: '🌿',
+    description: '与自然和谐共处的法师',
+    rarity: 'common',
+    type: 'common',
+    price: 700,
+    unlocked: false,
+    color: '#4CAF50',
+    isSpecial: false
+  },
+  shadow_mage: {
+    id: 'shadow_mage',
+    name: '暗影法师',
+    icon: '🌙',
+    description: '【稀有】连续签到7天解锁，神秘的暗影力量',
+    rarity: 'rare',
+    type: 'rare',
+    price: 0,
+    unlocked: false,
+    requiredSignInDays: 7,
+    color: '#9C27B0',
+    isSpecial: true
+  },
+  golden_mage: {
+    id: 'golden_mage',
+    name: '黄金法师',
+    icon: '👑',
+    description: '【稀有】连续签到14天解锁，闪耀的黄金之身',
+    rarity: 'rare',
+    type: 'rare',
+    price: 0,
+    unlocked: false,
+    requiredSignInDays: 14,
+    color: '#FFD700',
+    isSpecial: true
+  },
+  rainbow_mage: {
+    id: 'rainbow_mage',
+    name: '彩虹法师',
+    icon: '🌈',
+    description: '【稀有】连续签到21天解锁，七彩光芒的化身',
+    rarity: 'rare',
+    type: 'rare',
+    price: 0,
+    unlocked: false,
+    requiredSignInDays: 21,
+    color: 'linear-gradient(90deg, #FF6B6B, #FFD93D, #6BCB77, #4D96FF, #9C27B0)',
+    isSpecial: true
+  },
+  cosmic_mage: {
+    id: 'cosmic_mage',
+    name: '宇宙法师',
+    icon: '🌌',
+    description: '【稀有】连续签到28天解锁，宇宙星辰的化身',
+    rarity: 'rare',
+    type: 'rare',
+    price: 0,
+    unlocked: false,
+    requiredSignInDays: 28,
+    color: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)',
+    isSpecial: true
+  }
+};
+
+function getSkin(skinId) {
+  return SKINS[skinId] || null;
+}
+
+function isSkinUnlocked(user, skinId) {
+  const skin = getSkin(skinId);
+  if (!skin) return false;
+  
+  if (skin.unlocked) return true;
+  
+  if (user.unlockedSkins && user.unlockedSkins.includes(skinId)) {
+    return true;
+  }
+  
+  if (skin.type === 'rare' && skin.requiredSignInDays) {
+    if (user.signInStreak >= skin.requiredSignInDays) {
+      if (!user.unlockedSkins) user.unlockedSkins = [];
+      if (!user.unlockedSkins.includes(skinId)) {
+        user.unlockedSkins.push(skinId);
+      }
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 function getMaxInventorySlots() {
   return MAX_INVENTORY_SLOTS;
 }
@@ -679,7 +821,9 @@ const mockData = {
     freeSupplementalCount: 1,
     completedAchievements: [],
     previousLevel: 1,
-    hasFirstHardClearReward: false
+    hasFirstHardClearReward: false,
+    currentSkin: 'default',
+    unlockedSkins: ['default']
   },
   levels: [],
   chapters: JSON.parse(JSON.stringify(CHAPTERS)),
@@ -1571,6 +1715,127 @@ app.post('/api/level/fail', (req, res) => {
     success: true, 
     data: {
       user: { ...user }
+    }
+  });
+});
+
+app.get('/api/skins', (req, res) => {
+  const user = mockData.user;
+  const skinsList = Object.values(SKINS).map(skin => {
+    const unlocked = isSkinUnlocked(user, skin.id);
+    const isWearing = user.currentSkin === skin.id;
+    
+    let unlockProgress = null;
+    if (skin.type === 'rare' && skin.requiredSignInDays && !unlocked) {
+      unlockProgress = {
+        current: user.signInStreak,
+        required: skin.requiredSignInDays,
+        percentage: Math.min(100, Math.floor((user.signInStreak / skin.requiredSignInDays) * 100))
+      };
+    }
+    
+    return {
+      ...skin,
+      unlocked,
+      isWearing,
+      unlockProgress
+    };
+  });
+  
+  const commonSkins = skinsList.filter(s => s.type === 'common');
+  const rareSkins = skinsList.filter(s => s.type === 'rare');
+  
+  res.json({
+    success: true,
+    data: {
+      skins: skinsList,
+      commonSkins,
+      rareSkins,
+      userCoins: user.coins,
+      currentSkin: user.currentSkin,
+      unlockedCount: skinsList.filter(s => s.unlocked).length,
+      totalCount: skinsList.length
+    }
+  });
+});
+
+app.post('/api/skins/buy', (req, res) => {
+  const { skinId } = req.body;
+  const user = mockData.user;
+  const skin = getSkin(skinId);
+  
+  if (!skin) {
+    return res.status(404).json({ success: false, message: '皮肤不存在' });
+  }
+  
+  if (skin.type !== 'common') {
+    return res.status(400).json({ success: false, message: '稀有皮肤需要通过签到解锁' });
+  }
+  
+  const isUnlocked = isSkinUnlocked(user, skinId);
+  if (isUnlocked) {
+    return res.status(400).json({ success: false, message: '已拥有该皮肤' });
+  }
+  
+  if (user.coins < skin.price) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '金币不足',
+      required: skin.price,
+      current: user.coins
+    });
+  }
+  
+  user.coins -= skin.price;
+  if (!user.unlockedSkins) user.unlockedSkins = [];
+  user.unlockedSkins.push(skinId);
+  
+  res.json({
+    success: true,
+    data: {
+      skinId,
+      skin,
+      remainingCoins: user.coins,
+      user: { ...user }
+    }
+  });
+});
+
+app.post('/api/skins/wear', (req, res) => {
+  const { skinId } = req.body;
+  const user = mockData.user;
+  const skin = getSkin(skinId);
+  
+  if (!skin) {
+    return res.status(404).json({ success: false, message: '皮肤不存在' });
+  }
+  
+  const isUnlocked = isSkinUnlocked(user, skinId);
+  if (!isUnlocked) {
+    return res.status(400).json({ success: false, message: '未解锁该皮肤' });
+  }
+  
+  user.currentSkin = skinId;
+  
+  res.json({
+    success: true,
+    data: {
+      skinId,
+      skin,
+      user: { ...user }
+    }
+  });
+});
+
+app.get('/api/skins/current', (req, res) => {
+  const user = mockData.user;
+  const skin = getSkin(user.currentSkin);
+  
+  res.json({
+    success: true,
+    data: {
+      skinId: user.currentSkin,
+      skin: skin
     }
   });
 });

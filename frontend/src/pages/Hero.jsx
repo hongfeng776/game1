@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { heroAPI, userAPI } from '../services/api';
 import { useGameContext } from '../context/GameContext';
+import { getSkinIcon } from '../config/skinConfig';
 import '../styles/Hero.css';
 
 const attributeConfig = {
@@ -132,7 +133,7 @@ function Hero() {
 
         <div className="hero-header-card card">
           <div className="hero-avatar">
-            🦸
+            {getSkinIcon(user?.currentSkin)}
           </div>
           <div className="hero-info">
             <h2>{heroInfo.nickname}</h2>

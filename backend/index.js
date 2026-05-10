@@ -473,6 +473,7 @@ app.post('/api/level/complete', (req, res) => {
   const firstTime = !level.isCompleted;
   
   level.isCompleted = true;
+  const previousStars = level.stars;
   level.stars = Math.max(level.stars, stars);
   if (!level.bestTime || timeUsed < level.bestTime) {
     level.bestTime = timeUsed;
@@ -491,9 +492,17 @@ app.post('/api/level/complete', (req, res) => {
     nextChapter.unlocked = true;
   }
   
-  user.totalStars += firstTime ? stars : 0;
-  user.experience += map.experience;
-  user.coins += map.coins;
+  if (firstTime) {
+    user.totalStars += stars;
+    user.experience += map.experience;
+    user.coins += map.coins;
+  } else {
+    const starDiff = Math.max(0, level.stars - previousStars);
+    if (starDiff > 0) {
+      user.totalStars += starDiff;
+    }
+  }
+  
   user.completedLevels = mockData.levels.filter(l => l.isCompleted).length;
   
   const leveledUp = checkLevelUp(user);
@@ -503,8 +512,9 @@ app.post('/api/level/complete', (req, res) => {
     success: true, 
     data: {
       stars,
-      coins: map.coins,
-      experience: map.experience,
+      coins: firstTime ? map.coins : 0,
+      experience: firstTime ? map.experience : 0,
+      firstTime,
       leveledUp,
       user: { ...user },
       levels: mockData.levels

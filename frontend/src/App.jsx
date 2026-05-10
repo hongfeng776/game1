@@ -5,6 +5,7 @@ import Levels from './pages/Levels'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import GamePlay from './pages/GamePlay'
+import { GameProvider } from './context/GameContext'
 import './styles/App.css'
 
 function Navbar() {
@@ -75,22 +76,24 @@ function MobileNavbar() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <div className="app">
-        <Navbar />
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/start" element={<Start />} />
-            <Route path="/levels" element={<Levels />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/game/:levelId" element={<GamePlay />} />
-          </Routes>
-        </main>
-        <MobileNavbar />
-      </div>
-    </BrowserRouter>
+    <GameProvider>
+      <BrowserRouter>
+        <div className="app">
+          <Navbar />
+          <main className="main-content">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/start" element={<Start />} />
+              <Route path="/levels" element={<Levels />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/game/:levelId" element={<GamePlay />} />
+            </Routes>
+          </main>
+          <MobileNavbar />
+        </div>
+      </BrowserRouter>
+    </GameProvider>
   )
 }
 

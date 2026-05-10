@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { levelsAPI } from '../services/api'
 import '../styles/Levels.css'
 
 function Levels() {
+  const navigate = useNavigate()
   const [levels, setLevels] = useState([])
   const [selectedLevel, setSelectedLevel] = useState(null)
   const [showModal, setShowModal] = useState(false)
@@ -24,8 +26,7 @@ function Levels() {
 
   const handleStartLevel = () => {
     if (selectedLevel) {
-      alert(`开始关卡: ${selectedLevel.name}`)
-      setShowModal(false)
+      navigate(`/game/${selectedLevel.id}`)
     }
   }
 

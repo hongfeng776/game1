@@ -1,17 +1,8 @@
-import { useEffect, useState } from 'react'
-import { userAPI } from '../services/api'
+import { useGameContext } from '../context/GameContext'
 import '../styles/Profile.css'
 
 function Profile() {
-  const [user, setUser] = useState(null)
-
-  useEffect(() => {
-    userAPI.getUser().then(res => {
-      if (res.success) {
-        setUser(res.data)
-      }
-    })
-  }, [])
+  const { user, refreshUser } = useGameContext()
 
   return (
     <div className="profile-page">

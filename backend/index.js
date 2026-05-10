@@ -40,6 +40,160 @@ const CHAPTERS = [
   }
 ];
 
+const DIFFICULTY_CONFIG = {
+  easy: {
+    id: 'easy',
+    name: '简单',
+    description: '适合新手，怪物较少，移动较慢',
+    icon: '😊',
+    monsterMultiplier: 0.5,
+    monsterSpeedMultiplier: 0.7,
+    coinMultiplier: 1.0,
+    color: '#4CAF50'
+  },
+  normal: {
+    id: 'normal',
+    name: '普通',
+    description: '标准难度，适合大多数玩家',
+    icon: '😐',
+    monsterMultiplier: 1.0,
+    monsterSpeedMultiplier: 1.0,
+    coinMultiplier: 1.5,
+    color: '#2196F3'
+  },
+  hard: {
+    id: 'hard',
+    name: '困难',
+    description: '怪物较多，移动较快，奖励翻倍',
+    icon: '😈',
+    monsterMultiplier: 1.5,
+    monsterSpeedMultiplier: 1.3,
+    coinMultiplier: 2.0,
+    color: '#f44336'
+  }
+};
+
+const MONSTER_TYPES = {
+  slime: {
+    id: 'slime',
+    name: '史莱姆',
+    icon: '🟢',
+    damage: 15,
+    baseMoveInterval: 1500
+  },
+  bat: {
+    id: 'bat',
+    name: '蝙蝠',
+    icon: '🦇',
+    damage: 20,
+    baseMoveInterval: 1200
+  },
+  ghost: {
+    id: 'ghost',
+    name: '幽灵',
+    icon: '👻',
+    damage: 25,
+    baseMoveInterval: 1000
+  }
+};
+
+function getDefaultMonsters(levelId) {
+  const level = LEVEL_MAPS[levelId];
+  if (!level) return [];
+  
+  const emptyTiles = [];
+  for (let y = 0; y < level.height; y++) {
+    for (let x = 0; x < level.width; x++) {
+      const tile = level.map[y][x];
+      if (tile === 0) {
+        emptyTiles.push({ x, y });
+      }
+    }
+  }
+  
+  const distFromStart = (pos) => {
+    const dx = Math.abs(pos.x - level.startPos.x);
+    const dy = Math.abs(pos.y - level.startPos.y);
+    return dx + dy;
+  };
+  
+  const distFromEnd = (pos) => {
+    const dx = Math.abs(pos.x - level.endPos.x);
+    const dy = Math.abs(pos.y - level.endPos.y);
+    return dx + dy;
+  };
+  
+  const safeTiles = emptyTiles.filter(pos => 
+    distFromStart(pos) > 2 && distFromEnd(pos) > 2
+  );
+  
+  const baseMonsterCount = Math.min(3 + Math.floor(levelId / 2), Math.floor(safeTiles.length * 0.3));
+  const monsterTypes = Object.keys(MONSTER_TYPES);
+  
+  const monsters = [];
+  const usedPositions = new Set();
+  
+  for (let i = 0; i < baseMonsterCount; i++) {
+    if (safeTiles.length === 0) break;
+    
+    const randomIndex = Math.floor(Math.random() * safeTiles.length);
+    const pos = safeTiles[randomIndex];
+    const posKey = `${pos.x}-${pos.y}`;
+    
+    if (usedPositions.has(posKey)) continue;
+    usedPositions.add(posKey);
+    
+    const monsterTypeKey = monsterTypes[i % monsterTypes.length];
+    const monsterType = MONSTER_TYPES[monsterTypeKey];
+    
+    monsters.push({
+      id: `monster-${i}`,
+      type: monsterTypeKey,
+      name: monsterType.name,
+      icon: monsterType.icon,
+      damage: monsterType.damage,
+      baseMoveInterval: monsterType.baseMoveInterval,
+      x: pos.x,
+      y: pos.y,
+      direction: Math.floor(Math.random() * 4)
+    });
+    
+    safeTiles.splice(randomIndex, 1);
+  }
+  
+  return monsters;
+}
+
+function applyDifficultyToMonsters(monsters, difficulty) {
+  const config = DIFFICULTY_CONFIG[difficulty] || DIFFICULTY_CONFIG.normal;
+  
+  const adjustedMonsterCount = Math.ceil(monsters.length * config.monsterMultiplier);
+  
+  let adjustedMonsters = [];
+  
+  if (config.monsterMultiplier > 1) {
+    adjustedMonsters = [...monsters];
+    for (let i = monsters.length; i < adjustedMonsterCount && adjustedMonsters.length < adjustedMonsterCount; i++) {
+      const originalMonster = monsters[i % monsters.length];
+      adjustedMonsters.push({
+        ...originalMonster,
+        id: `monster-${i}`,
+        x: originalMonster.x + 1,
+        y: originalMonster.y + 1
+      });
+    }
+  } else if (config.monsterMultiplier < 1) {
+    adjustedMonsters = monsters.slice(0, adjustedMonsterCount);
+  } else {
+    adjustedMonsters = [...monsters];
+  }
+  
+  return adjustedMonsters.map(monster => ({
+    ...monster,
+    moveInterval: Math.floor(monster.baseMoveInterval / config.monsterSpeedMultiplier)
+  }));
+}
+
 const LEVEL_MAPS = {
   1: {
     id: 1,
@@ -887,15 +1041,32 @@ app.get('/api/levels', (req, res) => {
   res.json({ success: true, data: levels });
 });
 
+app.get('/api/difficulties', (req, res) => {
+  res.json({ success: true, data: Object.values(DIFFICULTY_CONFIG) });
+});
+
 app.get('/api/level/map/:levelId', (req, res) => {
   const levelId = parseInt(req.params.levelId);
+  const difficulty = req.query.difficulty || 'normal';
   const map = LEVEL_MAPS[levelId];
   
   if (!map) {
     return res.status(404).json({ success: false, message: '关卡不存在' });
   }
   
-  res.json({ success: true, data: map });
+  const difficultyConfig = DIFFICULTY_CONFIG[difficulty] || DIFFICULTY_CONFIG.normal;
+  const baseMonsters = getDefaultMonsters(levelId);
+  const monsters = applyDifficultyToMonsters(baseMonsters, difficulty);
+  
+  const adjustedMap = {
+    ...map,
+    difficulty,
+    difficultyConfig,
+    monsters,
+    coins: Math.floor(map.coins * difficultyConfig.coinMultiplier)
+  };
+  
+  res.json({ success: true, data: adjustedMap });
 });
 
 app.get('/api/settings', (req, res) => {
@@ -1190,13 +1361,17 @@ function checkAchievements(user, levels) {
 }
 
 app.post('/api/level/complete', (req, res) => {
-  const { levelId, timeUsed } = req.body;
+  const { levelId, timeUsed, difficulty } = req.body;
   const level = mockData.levels.find(l => l.id === levelId);
   const map = LEVEL_MAPS[levelId];
   
   if (!level || !map) {
     return res.status(404).json({ success: false, message: '关卡不存在' });
   }
+  
+  const difficultyConfig = DIFFICULTY_CONFIG[difficulty] || DIFFICULTY_CONFIG.normal;
+  const adjustedCoins = Math.floor(map.coins * difficultyConfig.coinMultiplier);
+  const adjustedExp = Math.floor(map.experience * difficultyConfig.coinMultiplier);
   
   const user = mockData.user;
   const stars = calculateStars(timeUsed, map.timeLimit, user.hp, user.maxHp);
@@ -1224,13 +1399,14 @@ app.post('/api/level/complete', (req, res) => {
   
   if (firstTime) {
     user.totalStars += stars;
-    user.experience += map.experience;
-    user.coins += map.coins;
+    user.experience += adjustedExp;
+    user.coins += adjustedCoins;
   } else {
     const starDiff = Math.max(0, level.stars - previousStars);
     if (starDiff > 0) {
       user.totalStars += starDiff;
     }
+    user.coins += adjustedCoins;
   }
   
   user.completedLevels = mockData.levels.filter(l => l.isCompleted).length;
@@ -1249,13 +1425,16 @@ app.post('/api/level/complete', (req, res) => {
     success: true, 
     data: {
       stars,
-      coins: firstTime ? map.coins : 0,
-      experience: firstTime ? map.experience : 0,
+      coins: adjustedCoins,
+      experience: firstTime ? adjustedExp : 0,
       firstTime,
       leveledUp,
       drops: appliedDrops,
       newAchievements,
       maxInventorySlots: getMaxInventorySlots(),
+      difficulty: difficultyConfig.id,
+      difficultyName: difficultyConfig.name,
+      coinMultiplier: difficultyConfig.coinMultiplier,
       user: { ...user },
       levels: mockData.levels
     }

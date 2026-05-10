@@ -551,6 +551,16 @@
   color: #333;
 }
 
+.reward-bonus {
+  background: linear-gradient(135deg, #FFD700, #FFA500);
+  color: white;
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 5px;
+  font-weight: bold;
+}
+
 .control-item {
   display: flex;
   align-items: center;

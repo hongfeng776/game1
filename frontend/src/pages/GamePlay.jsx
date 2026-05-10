@@ -32,6 +32,11 @@ function GamePlay() {
 
   const game = useGame(mapData, user);
 
+  const getDifficulty = useCallback(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('difficulty') || 'normal';
+  }, []);
+
   useEffect(() => {
     gameEndedRef.current = false;
     loadGame();
@@ -40,12 +45,13 @@ function GamePlay() {
 
   const loadGame = useCallback(async () => {
     try {
-      const mapRes = await levelsAPI.getLevelMap(levelId);
+      const difficulty = getDifficulty();
+      const mapRes = await levelsAPI.getLevelMap(levelId, difficulty);
       if (mapRes.success) setMapData(mapRes.data);
     } catch (error) {
       console.error('加载游戏失败:', error);
     }
-  }, [levelId]);
+  }, [levelId, getDifficulty]);
 
   const loadInventory = useCallback(async () => {
     try {
@@ -90,7 +96,8 @@ function GamePlay() {
   const handleGameEnd = async () => {
     try {
       if (game.isWin) {
-        const result = await levelsAPI.completeLevel(parseInt(levelId), game.timeUsed);
+        const difficulty = getDifficulty();
+        const result = await levelsAPI.completeLevel(parseInt(levelId), game.timeUsed, difficulty);
         if (result.success) {
           setResultData(result.data);
           setShowResult(true);
@@ -349,9 +356,18 @@ function GamePlay() {
 
           <div className="level-rewards-card card">
             <h3>通关奖励</h3>
+            {mapData.difficultyConfig && (
+              <div className="reward-item">
+                <span className="reward-icon">{mapData.difficultyConfig.icon}</span>
+                <span className="reward-text">难度: {mapData.difficultyConfig.name}</span>
+              </div>
+            )}
             <div className="reward-item">
               <span className="reward-icon">💰</span>
               <span className="reward-text">金币: {mapData.coins}</span>
+              {mapData.difficultyConfig && mapData.difficultyConfig.coinMultiplier > 1 && (
+                <span className="reward-bonus">×{mapData.difficultyConfig.coinMultiplier}</span>
+              )}
             </div>
             <div className="reward-item">
               <span className="reward-icon">✨</span>
@@ -411,6 +427,7 @@ function GamePlay() {
             mapData={mapData} 
             playerPos={game.playerPos}
             damageFlash={game.damageFlash}
+            monsters={game.monsters}
           />
 
           <div className="game-action-buttons">

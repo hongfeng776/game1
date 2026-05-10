@@ -101,6 +101,25 @@
   75% { transform: scale(0.9); }
 }
 
+.monster {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 9;
+}
+
+.monster-icon {
+  font-size: 1.6rem;
+  animation: monsterBob 0.8s ease-in-out infinite;
+}
+
+@keyframes monsterBob {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2px) scale(1.05); }
+}
+
 .game-legend {
   display: flex;
   gap: 20px;

@@ -1,7 +1,7 @@
 import { TILE_SIZE, TILE_TYPES } from '../hooks/useGame';
 import '../styles/GameMap.css';
 
-function GameMap({ mapData, playerPos, damageFlash }) {
+function GameMap({ mapData, playerPos, damageFlash, monsters }) {
   if (!mapData) return null;
 
   const renderTile = (tileType, x, y) => {
@@ -55,6 +55,22 @@ function GameMap({ mapData, playerPos, damageFlash }) {
           row.map((tile, x) => renderTile(tile, x, y))
         )}
         
+        {monsters && monsters.map(monster => (
+          <div 
+            key={monster.id}
+            className="monster"
+            style={{
+              width: TILE_SIZE,
+              height: TILE_SIZE,
+              left: monster.x * TILE_SIZE,
+              top: monster.y * TILE_SIZE
+            }}
+            title={`${monster.name} - 伤害: ${monster.damage}`}
+          >
+            <span className="monster-icon">{monster.icon}</span>
+          </div>
+        ))}
+        
         {playerPos && (
           <div 
             className={`player ${damageFlash ? 'player-damage' : ''}`}
@@ -82,6 +98,10 @@ function GameMap({ mapData, playerPos, damageFlash }) {
         <div className="legend-item">
           <span className="legend-icon">💀</span>
           <span>陷阱</span>
+        </div>
+        <div className="legend-item">
+          <span className="legend-icon">👾</span>
+          <span>怪物</span>
         </div>
         <div className="legend-item">
           <span className="legend-icon">🧙</span>

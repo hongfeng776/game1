@@ -4,6 +4,7 @@ import { levelsAPI, inventoryAPI } from '../services/api'
 import '../styles/Levels.css'
 
 const MAX_CARRY_ITEMS = 2;
+const DEFAULT_DIFFICULTY = 'normal';
 
 function Levels() {
   const navigate = useNavigate()
@@ -14,11 +15,18 @@ function Levels() {
   const [selectedItems, setSelectedItems] = useState([])
   const [notification, setNotification] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [difficulties, setDifficulties] = useState([])
+  const [selectedDifficulty, setSelectedDifficulty] = useState(DEFAULT_DIFFICULTY)
 
   useEffect(() => {
     levelsAPI.getLevels().then(res => {
       if (res.success) {
         setLevels(res.data)
+      }
+    })
+    levelsAPI.getDifficulties().then(res => {
+      if (res.success) {
+        setDifficulties(res.data)
       }
     })
   }, [])
@@ -67,7 +75,7 @@ function Levels() {
     try {
       const res = await inventoryAPI.carryItems(selectedItems)
       if (res.success) {
-        navigate(`/game/${selectedLevel.id}`)
+        navigate(`/game/${selectedLevel.id}?difficulty=${selectedDifficulty}`)
       }
     } catch (error) {
       showNotificationMsg(error.response?.data?.message || '保存失败', 'error')
@@ -171,6 +179,38 @@ function Levels() {
                     <span className="info-value">
                       {selectedLevel.isCompleted ? '✅ 已完成' : '⏳ 待挑战'}
                     </span>
+                  </div>
+                </div>
+
+                <div className="difficulty-section">
+                  <h3 className="difficulty-title">⚔️ 选择难度</h3>
+                  <div className="difficulty-options">
+                    {difficulties.map(diff => (
+                      <div
+                        key={diff.id}
+                        className={`difficulty-option ${selectedDifficulty === diff.id ? 'selected' : ''}`}
+                        onClick={() => setSelectedDifficulty(diff.id)}
+                        style={{ '--diff-color': diff.color }}
+                      >
+                        <div className="difficulty-icon">{diff.icon}</div>
+                        <div className="difficulty-name">{diff.name}</div>
+                        <div className="difficulty-desc">{diff.description}</div>
+                        <div className="difficulty-details">
+                          <div className="detail-item">
+                            <span className="detail-icon">👾</span>
+                            <span>怪物 ×{diff.monsterMultiplier}</span>
+                          </div>
+                          <div className="detail-item">
+                            <span className="detail-icon">⚡</span>
+                            <span>速度 ×{diff.monsterSpeedMultiplier}</span>
+                          </div>
+                          <div className="detail-item">
+                            <span className="detail-icon">💰</span>
+                            <span>金币 ×{diff.coinMultiplier}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 

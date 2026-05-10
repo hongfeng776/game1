@@ -117,7 +117,12 @@ function Inventory() {
             <div className="stat-divider">/</div>
             <div className="stat-item">
               <span className="stat-value">{inventory.maxSlots}</span>
-              <span className="stat-label">最大格子</span>
+              <span className="stat-label">
+                最大格子
+                {inventory.bonusSlots > 0 && (
+                  <span className="bonus-badge">+{inventory.bonusSlots}</span>
+                )}
+              </span>
             </div>
           </div>
           <div className="filter-bar">
@@ -137,6 +142,12 @@ function Inventory() {
               </button>
             ))}
           </div>
+          {inventory.nextUnlockAt && (
+            <div className="unlock-hint">
+              <span className="unlock-icon">🔓</span>
+              升到 <span className="unlock-level">{inventory.nextUnlockAt}</span> 级可解锁 +5 格子
+            </div>
+          )}
         </div>
 
         {filteredItems.length === 0 ? (

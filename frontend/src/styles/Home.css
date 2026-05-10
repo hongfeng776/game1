@@ -1,5 +1,102 @@
 .home {
   padding: 20px 0;
+  position: relative;
+}
+
+.signin-section {
+  max-width: 600px;
+  margin: 20px auto;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  padding: 20px;
+  color: white;
+}
+
+.signin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.signin-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.signin-icon {
+  font-size: 1.8rem;
+}
+
+.signin-title h3 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.signin-streak {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-weight: bold;
+}
+
+.signin-rewards {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.reward-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 10px 15px;
+  border-radius: 12px;
+}
+
+.reward-preview .reward-icon {
+  font-size: 1.8rem;
+  margin-bottom: 5px;
+}
+
+.reward-preview .reward-count {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.signin-section .btn-success {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  border: none;
+  width: 100%;
+  padding: 15px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: white;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.signin-section .btn-success:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(17, 153, 142, 0.4);
+}
+
+.signin-section .btn-disabled {
+  background: rgba(255, 255, 255, 0.3);
+  border: none;
+  width: 100%;
+  padding: 15px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: white;
+  border-radius: 15px;
+  cursor: not-allowed;
+  opacity: 0.8;
 }
 
 .hero {

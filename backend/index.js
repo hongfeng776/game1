@@ -402,6 +402,64 @@ const ITEMS = {
   }
 };
 
+function getBaseInventorySlots() {
+  return 10;
+}
+
+function getBonusInventorySlots(userLevel) {
+  let bonus = 0;
+  if (userLevel >= 10) bonus += 5;
+  if (userLevel >= 20) bonus += 5;
+  return Math.min(bonus, 10);
+}
+
+function getMaxInventorySlots(userLevel) {
+  return getBaseInventorySlots() + getBonusInventorySlots(userLevel);
+}
+
+const ACHIEVEMENTS = {
+  first_level: {
+    id: 'first_level',
+    name: '初出茅庐',
+    description: '完成第一个关卡',
+    icon: '🎯',
+    reward: { itemId: 'hp_potion_medium', quantity: 2 },
+    check: (user, levels) => levels.filter(l => l.isCompleted).length >= 1
+  },
+  ten_levels: {
+    id: 'ten_levels',
+    name: '勇往直前',
+    description: '完成 10 个关卡',
+    icon: '🏆',
+    reward: { itemId: 'hp_potion_large', quantity: 2 },
+    check: (user, levels) => levels.filter(l => l.isCompleted).length >= 10
+  },
+  all_stars: {
+    id: 'all_stars',
+    name: '完美收集',
+    description: '获得 30 颗星星',
+    icon: '⭐',
+    reward: { itemId: 'revive', quantity: 2 },
+    check: (user, levels) => user.totalStars >= 30
+  },
+  level_5: {
+    id: 'level_5',
+    name: '崭露头角',
+    description: '角色达到 5 级',
+    icon: '🌟',
+    reward: { itemId: 'hp_potion_medium', quantity: 3 },
+    check: (user, levels) => user.level >= 5
+  },
+  level_10: {
+    id: 'level_10',
+    name: '小有所成',
+    description: '角色达到 10 级',
+    icon: '💎',
+    reward: { itemId: 'hp_potion_large', quantity: 3 },
+    check: (user, levels) => user.level >= 10
+  }
+};
+
 const mockData = {
   user: {
     id: 1,
@@ -432,7 +490,10 @@ const mockData = {
       attack_boost: 3,
       revive: 1
     },
-    maxInventorySlots: 50
+    lastSignInDate: null,
+    signInStreak: 0,
+    completedAchievements: [],
+    previousLevel: 1
   },
   levels: [],
   chapters: JSON.parse(JSON.stringify(CHAPTERS)),
@@ -739,12 +800,18 @@ app.get('/api/inventory', (req, res) => {
     quantity: user.inventory[itemId]
   })).filter(inv => inv.quantity > 0);
   
+  const maxSlots = getMaxInventorySlots(user.level);
+  const bonusSlots = getBonusInventorySlots(user.level);
+  
   res.json({
     success: true,
     data: {
       items: inventoryList,
-      maxSlots: user.maxInventorySlots,
-      usedSlots: inventoryList.length
+      maxSlots,
+      usedSlots: inventoryList.length,
+      baseSlots: getBaseInventorySlots(),
+      bonusSlots,
+      nextUnlockAt: user.level < 10 ? 10 : (user.level < 20 ? 20 : null)
     }
   });
 });
@@ -853,6 +920,134 @@ app.post('/api/settings', (req, res) => {
   res.json({ success: true, data: mockData.settings });
 });
 
+app.get('/api/signin/status', (req, res) => {
+  const user = mockData.user;
+  const today = new Date().toDateString();
+  const canSignIn = user.lastSignInDate !== today;
+  
+  res.json({
+    success: true,
+    data: {
+      canSignIn,
+      lastSignInDate: user.lastSignInDate,
+      streak: user.signInStreak,
+      todayRewards: getTodaySignInRewards(user.signInStreak + 1)
+    }
+  });
+});
+
+function getTodaySignInRewards(streakDay) {
+  const dayInWeek = ((streakDay - 1) % 7) + 1;
+  const rewards = [];
+  
+  const dayRewards = {
+    1: [{ itemId: 'hp_potion_small', quantity: 3, coins: 50 }],
+    2: [{ itemId: 'hp_potion_small', quantity: 5, coins: 100 }],
+    3: [{ itemId: 'hp_potion_medium', quantity: 2, coins: 100 }],
+    4: [{ itemId: 'attack_boost', quantity: 2, coins: 150 }],
+    5: [{ itemId: 'hp_potion_medium', quantity: 3, coins: 200 }],
+    6: [{ itemId: 'shield', quantity: 2, coins: 200 }],
+    7: [{ itemId: 'hp_potion_large', quantity: 2 }, { itemId: 'revive', quantity: 1, coins: 500 }]
+  };
+  
+  return dayRewards[dayInWeek] || dayRewards[1];
+}
+
+app.post('/api/signin', (req, res) => {
+  const user = mockData.user;
+  const today = new Date().toDateString();
+  
+  if (user.lastSignInDate === today) {
+    return res.status(400).json({ success: false, message: '今天已签到过了' });
+  }
+  
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  if (user.lastSignInDate === yesterday.toDateString()) {
+    user.signInStreak++;
+  } else {
+    user.signInStreak = 1;
+  }
+  
+  user.lastSignInDate = today;
+  
+  const rewards = getTodaySignInRewards(user.signInStreak);
+  const appliedRewards = [];
+  
+  rewards.forEach(reward => {
+    if (reward.itemId) {
+      const result = addItemToInventory(user, reward.itemId, reward.quantity);
+      if (result.success) {
+        appliedRewards.push({
+          itemId: reward.itemId,
+          item: getItem(reward.itemId),
+          quantity: reward.quantity
+        });
+      }
+    }
+    if (reward.coins) {
+      user.coins += reward.coins;
+    }
+  });
+  
+  res.json({
+    success: true,
+    data: {
+      streak: user.signInStreak,
+      rewards: appliedRewards,
+      user: { ...user }
+    }
+  });
+});
+
+app.get('/api/achievements', (req, res) => {
+  const user = mockData.user;
+  const levels = mockData.levels;
+  
+  const achievementsList = Object.values(ACHIEVEMENTS).map(achievement => ({
+    ...achievement,
+    isCompleted: user.completedAchievements.includes(achievement.id),
+    rewardItem: getItem(achievement.reward.itemId)
+  }));
+  
+  res.json({
+    success: true,
+    data: {
+      achievements: achievementsList,
+      completedCount: user.completedAchievements.length,
+      totalCount: Object.keys(ACHIEVEMENTS).length
+    }
+  });
+});
+
+function checkAchievements(user, levels) {
+  const newAchievements = [];
+  
+  Object.values(ACHIEVEMENTS).forEach(achievement => {
+    if (!user.completedAchievements.includes(achievement.id)) {
+      if (achievement.check(user, levels)) {
+        user.completedAchievements.push(achievement.id);
+        user.achievementCount++;
+        
+        if (achievement.reward.itemId) {
+          addItemToInventory(user, achievement.reward.itemId, achievement.reward.quantity);
+        }
+        if (achievement.reward.coins) {
+          user.coins += achievement.reward.coins;
+        }
+        
+        newAchievements.push({
+          ...achievement,
+          rewardItem: getItem(achievement.reward.itemId)
+        });
+      }
+    }
+  });
+  
+  return newAchievements;
+}
+
 app.post('/api/level/complete', (req, res) => {
   const { levelId, timeUsed } = req.body;
   const level = mockData.levels.find(l => l.id === levelId);
@@ -899,11 +1094,24 @@ app.post('/api/level/complete', (req, res) => {
   
   user.completedLevels = mockData.levels.filter(l => l.isCompleted).length;
   
+  const previousLevel = user.previousLevel;
   const leveledUp = checkLevelUp(user);
+  
+  let inventorySlotsUnlocked = null;
+  if (previousLevel < 10 && user.level >= 10) {
+    inventorySlotsUnlocked = { level: 10, slots: 5, newTotal: getMaxInventorySlots(user.level) };
+  }
+  if (previousLevel < 20 && user.level >= 20) {
+    inventorySlotsUnlocked = { level: 20, slots: 5, newTotal: getMaxInventorySlots(user.level) };
+  }
+  user.previousLevel = user.level;
+  
   user.hp = user.maxHp;
   
   const drops = generateRandomDrops(levelId);
   const appliedDrops = applyDropsToInventory(user, drops);
+  
+  const newAchievements = checkAchievements(user, mockData.levels);
   
   res.json({ 
     success: true, 
@@ -914,6 +1122,9 @@ app.post('/api/level/complete', (req, res) => {
       firstTime,
       leveledUp,
       drops: appliedDrops,
+      newAchievements,
+      inventorySlotsUnlocked,
+      maxInventorySlots: getMaxInventorySlots(user.level),
       user: { ...user },
       levels: mockData.levels
     }

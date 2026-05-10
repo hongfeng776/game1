@@ -141,6 +141,36 @@
   color: white;
 }
 
+.bonus-badge {
+  background: linear-gradient(135deg, #FF9800, #FF5722);
+  color: white;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 5px;
+  font-weight: bold;
+}
+
+.unlock-hint {
+  margin-top: 15px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #E3F2FD, #BBDEFB);
+  border: 1px solid #90CAF9;
+  border-radius: 10px;
+  text-align: center;
+  color: #1565C0;
+  font-size: 0.95rem;
+}
+
+.unlock-icon {
+  margin-right: 5px;
+}
+
+.unlock-level {
+  font-weight: bold;
+  color: #1976D2;
+}
+
 .empty-state {
   text-align: center;
   padding: 60px 20px;

@@ -49,6 +49,15 @@ export const settingsAPI = {
   updateSettings: (settings) => api.post('/settings', settings),
 };
 
+export const signInAPI = {
+  getStatus: () => api.get('/signin/status'),
+  signIn: () => api.post('/signin'),
+};
+
+export const achievementAPI = {
+  getAll: () => api.get('/achievements'),
+};
+
 export const healthAPI = {
   check: () => api.get('/health'),
 };

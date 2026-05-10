@@ -26,10 +26,12 @@ function GamePlay() {
   const [inventory, setInventory] = useState(null);
   const [showInventory, setShowInventory] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [itemEffects, setItemEffects] = useState([]);
   const { user, updateUser } = useGameContext();
   const gameEndedRef = useRef(false);
   const isUsingItemRef = useRef(false);
   const pendingItemRequestsRef = useRef(new Set());
+  const effectIdCounter = useRef(0);
 
   const game = useGame(mapData, user);
 
@@ -69,6 +71,22 @@ function GamePlay() {
   const showNotificationMsg = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 2000);
+  };
+
+  const showItemEffect = (effectType, effectValue, itemIcon) => {
+    const effectId = effectIdCounter.current++;
+    const newEffect = {
+      id: effectId,
+      type: effectType,
+      value: effectValue,
+      icon: itemIcon
+    };
+    
+    setItemEffects(prev => [...prev, newEffect]);
+    
+    setTimeout(() => {
+      setItemEffects(prev => prev.filter(e => e.id !== effectId));
+    }, 1500);
   };
 
   const handleGameEnd = async () => {
@@ -133,12 +151,21 @@ function GamePlay() {
       const res = await inventoryAPI.useItem(itemId, 1);
       if (res.success) {
         if (effect.type === 'heal') {
+          const healPercent = Math.round((effect.healAmount / game.maxHp) * 100);
+          showItemEffect('heal', healPercent, display.icon);
           showNotificationMsg(`使用了 ${display.name}，恢复了 ${effect.healAmount} 点生命值！`, 'success');
         } else if (effect.type === 'buff') {
+          let buffText = '';
+          if (effect.buff.attackBoost) buffText = `攻击 +${Math.round(effect.buff.attackBoost * 100)}%`;
+          else if (effect.buff.defenseBoost) buffText = `防御 +${Math.round(effect.buff.defenseBoost * 100)}%`;
+          else if (effect.buff.speedBoost) buffText = `速度 +${Math.round(effect.buff.speedBoost * 100)}%`;
+          showItemEffect('buff', buffText, display.icon);
           showNotificationMsg(`使用了 ${display.name}，获得增益效果！`, 'success');
         } else if (effect.type === 'shield') {
+          showItemEffect('shield', effect.shieldAmount, display.icon);
           showNotificationMsg(`使用了 ${display.name}，获得 ${effect.shieldAmount} 点护盾！`, 'success');
         } else if (effect.type === 'revive') {
+          showItemEffect('revive', '就绪', display.icon);
           showNotificationMsg(`已激活 ${display.name}，死亡时自动复活！`, 'success');
         }
         await loadInventory();
@@ -228,6 +255,25 @@ function GamePlay() {
           {notification.message}
         </div>
       )}
+
+      <div className="item-effects-container">
+        {itemEffects.map(effect => (
+          <div key={effect.id} className={`item-effect item-effect-${effect.type}`}>
+            <div className="effect-bubbles">
+              {effect.type === 'heal' && <><span className="bubble">💚</span><span className="bubble">💚</span><span className="bubble">💚</span></>}
+              {effect.type === 'buff' && <><span className="bubble">✨</span><span className="bubble">⭐</span><span className="bubble">✨</span></>}
+              {effect.type === 'shield' && <><span className="bubble">🛡️</span><span className="bubble">💎</span><span className="bubble">🛡️</span></>}
+              {effect.type === 'revive' && <><span className="bubble">📜</span><span className="bubble">✨</span><span className="bubble">📜</span></>}
+            </div>
+            <div className="effect-text">
+              {effect.type === 'heal' && `+${effect.value}% 回血`}
+              {effect.type === 'buff' && effect.value}
+              {effect.type === 'shield' && `+${effect.value} 护盾`}
+              {effect.type === 'revive' && `复活 ${effect.value}`}
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div className="game-header">
         <div className="game-header-left">

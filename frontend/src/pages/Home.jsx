@@ -1,22 +1,111 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { userAPI } from '../services/api'
+import { userAPI, signInAPI } from '../services/api'
+import { useGameContext } from '../context/GameContext'
 import '../styles/Home.css'
 
 function Home() {
   const [user, setUser] = useState(null)
+  const [signInStatus, setSignInStatus] = useState(null)
+  const [signInLoading, setSignInLoading] = useState(false)
+  const [notification, setNotification] = useState(null)
+  const { updateUser } = useGameContext()
 
   useEffect(() => {
-    userAPI.getUser().then(res => {
-      if (res.success) {
-        setUser(res.data)
-      }
-    })
+    loadData()
   }, [])
+
+  const loadData = async () => {
+    try {
+      const userRes = await userAPI.getUser()
+      if (userRes.success) {
+        setUser(userRes.data)
+      }
+      
+      const signInRes = await signInAPI.getStatus()
+      if (signInRes.success) {
+        setSignInStatus(signInRes.data)
+      }
+    } catch (error) {
+      console.error('加载数据失败:', error)
+    }
+  }
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type })
+    setTimeout(() => setNotification(null), 3000)
+  }
+
+  const handleSignIn = async () => {
+    if (!signInStatus?.canSignIn || signInLoading) return
+    
+    setSignInLoading(true)
+    try {
+      const res = await signInAPI.signIn()
+      if (res.success) {
+        setSignInStatus({ ...signInStatus, canSignIn: false, streak: res.data.streak })
+        if (res.data.user) {
+          updateUser(res.data.user)
+          setUser(res.data.user)
+        }
+        
+        const rewardTexts = res.data.rewards.map(r => 
+          `${r.item?.icon} ${r.item?.name} ×${r.quantity}`
+        ).join(', ')
+        showNotification(`签到成功！连续 ${res.data.streak} 天。获得: ${rewardTexts || '金币奖励'}`)
+      }
+    } catch (error) {
+      showNotification(error.response?.data?.message || '签到失败', 'error')
+    } finally {
+      setSignInLoading(false)
+    }
+  }
 
   return (
     <div className="home">
+      {notification && (
+        <div className={`notification ${notification.type}`}>
+          {notification.message}
+        </div>
+      )}
+      
       <div className="container">
+        {signInStatus && (
+          <div className="signin-section card">
+            <div className="signin-header">
+              <div className="signin-title">
+                <span className="signin-icon">📅</span>
+                <h3>每日签到</h3>
+              </div>
+              <div className="signin-streak">
+                🔥 连续 {signInStatus.streak || 0} 天
+              </div>
+            </div>
+            
+            <div className="signin-rewards">
+              {signInStatus.todayRewards?.map((reward, idx) => (
+                <div key={idx} className="reward-preview">
+                  <span className="reward-icon">{reward.itemId?.includes('hp_potion') ? (
+                    reward.itemId === 'hp_potion_small' ? '🧪' : 
+                    reward.itemId === 'hp_potion_medium' ? '🧴' : '⚗️'
+                  ) : reward.itemId === 'attack_boost' ? '💪' :
+                    reward.itemId === 'shield' ? '💎' :
+                    reward.itemId === 'revive' ? '📜' : '🎁'}</span>
+                  <span className="reward-count">×{reward.quantity || (reward.coins && `${reward.coins}💰`)}</span>
+                </div>
+              ))}
+            </div>
+            
+            <button
+              className={`btn ${signInStatus.canSignIn ? 'btn-success' : 'btn-disabled'}`}
+              onClick={handleSignIn}
+              disabled={!signInStatus.canSignIn || signInLoading}
+            >
+              {signInLoading ? '签到中...' : (signInStatus.canSignIn ? '✓ 立即签到' : '✓ 今日已签到')}
+            </button>
+          </div>
+        )}
+
         <div className="hero">
           <div className="hero-content">
             <h1 className="hero-title">🎮 卡通休闲游戏</h1>

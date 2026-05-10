@@ -2320,9 +2320,6 @@ app.post('/api/daily-tasks/refresh', (req, res) => {
     });
   }
   
-  const claimedIds = user.dailyTasks.filter(t => t.isClaimed).map(t => t.id);
-  
-  const claimedTasks = user.dailyTasks.filter(t => t.isClaimed);
   const unclaimedTasks = user.dailyTasks.filter(t => !t.isClaimed);
   
   if (unclaimedTasks.length === 0) {
@@ -2352,15 +2349,16 @@ app.post('/api/daily-tasks/refresh', (req, res) => {
     progress: 0,
     isCompleted: false,
     isClaimed: false,
-    lastUpdateDate: today
+    lastUpdateDate: today,
+    refreshTimestamp: Date.now()
   };
   
-  const tasksToRefresh = unclaimedTasks.filter(t => !t.isCompleted);
+  const tasksToRefresh = unclaimedTasks;
   
   if (tasksToRefresh.length === 0) {
     return res.status(400).json({ 
       success: false, 
-      message: '没有可刷新的任务，未完成的任务已不存在' 
+      message: '没有可刷新的任务' 
     });
   }
   
@@ -2369,8 +2367,15 @@ app.post('/api/daily-tasks/refresh', (req, res) => {
   const replaceIndex = user.dailyTasks.findIndex(t => t.id === taskToReplace.id);
   
   const oldTask = user.dailyTasks[replaceIndex];
-  user.dailyTasks[replaceIndex] = newTask;
   
+  if (oldTask.isCompleted && !oldTask.isClaimed) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '该任务已完成，请先领取奖励后再刷新' 
+    });
+  }
+  
+  user.dailyTasks[replaceIndex] = newTask;
   user.dailyTaskRefreshCount--;
   
   const tasks = user.dailyTasks;

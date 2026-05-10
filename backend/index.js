@@ -920,26 +920,21 @@ function checkAndResetSupplementalCount(user) {
   }
 }
 
-function getDaysSinceLastSignIn(user) {
-  if (!user.lastSignInDate) return null;
-  
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const lastSignIn = new Date(user.lastSignInDate);
-  lastSignIn.setHours(0, 0, 0, 0);
-  
-  const diffTime = today.getTime() - lastSignIn.getTime();
-  const diffDays = diffTime / (1000 * 60 * 60 * 24);
-  
-  return diffDays;
+function getDaysDiff(dateStr1, dateStr2) {
+  const date1 = new Date(dateStr1);
+  const date2 = new Date(dateStr2);
+  date1.setHours(0, 0, 0, 0);
+  date2.setHours(0, 0, 0, 0);
+  const diffTime = date1.getTime() - date2.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
 function canSupplementalSignIn(user) {
   checkAndResetSupplementalCount(user);
   
-  const today = new Date();
+  const today = new Date().toDateString();
   
-  if (user.lastSignInDate === today.toDateString()) {
+  if (user.lastSignInDate === today) {
     return false;
   }
   
@@ -947,9 +942,9 @@ function canSupplementalSignIn(user) {
     return false;
   }
   
-  const daysSince = getDaysSinceLastSignIn(user);
+  const daysDiff = getDaysDiff(today, user.lastSignInDate);
   
-  if (daysSince === null || daysSince < 1 || daysSince > 3) {
+  if (daysDiff < 1 || daysDiff > 3) {
     return false;
   }
   
@@ -959,11 +954,14 @@ function canSupplementalSignIn(user) {
 function getSupplementalInfo(user) {
   checkAndResetSupplementalCount(user);
   
+  const today = new Date().toDateString();
+  const daysSinceLastSignIn = user.lastSignInDate ? getDaysDiff(today, user.lastSignInDate) : null;
+  
   return {
     canSupplemental: canSupplementalSignIn(user),
     freeCount: user.freeSupplementalCount,
     maxFreeCount: 1,
-    daysSinceLastSignIn: getDaysSinceLastSignIn(user)
+    daysSinceLastSignIn
   };
 }
 
@@ -985,6 +983,8 @@ app.get('/api/signin/status', (req, res) => {
   });
 });
 
+const SPECIAL_REWARD_DAYS = [7, 14, 21, 28];
+
 const SIGNIN_REWARDS = {
   1: { itemId: 'hp_potion', quantity: 2, coins: 50 },
   2: { itemId: 'hp_potion', quantity: 3, coins: 100 },
@@ -997,6 +997,10 @@ const SIGNIN_REWARDS = {
   21: { itemId: 'hp_potion', quantity: 5, coins: 400 },
   28: { itemId: 'revive_scroll', quantity: 2, coins: 1000 }
 };
+
+function isSpecialRewardDay(streakDay) {
+  return SPECIAL_REWARD_DAYS.includes(streakDay);
+}
 
 function getTodaySignInRewards(streakDay) {
   if (SIGNIN_REWARDS[streakDay]) {
@@ -1075,6 +1079,7 @@ app.post('/api/signin', (req, res) => {
       streak: user.signInStreak,
       rewards: appliedRewards,
       coins: totalCoins,
+      isSpecialReward: isSpecialRewardDay(user.signInStreak),
       user: { ...user }
     }
   });
@@ -1093,9 +1098,11 @@ app.post('/api/signin/supplemental', (req, res) => {
   
   checkAndResetSupplementalCount(user);
   
-  const daysSince = getDaysSinceLastSignIn(user) || 1;
+  const daysDiff = getDaysDiff(today, user.lastSignInDate);
   const previousStreak = user.signInStreak;
-  user.signInStreak = previousStreak + Math.floor(daysSince);
+  const daysRecovered = daysDiff;
+  
+  user.signInStreak = previousStreak + daysRecovered;
   user.lastSignInDate = today;
   user.freeSupplementalCount--;
   
@@ -1125,10 +1132,11 @@ app.post('/api/signin/supplemental', (req, res) => {
     data: {
       streak: user.signInStreak,
       previousStreak: previousStreak,
-      daysRecovered: Math.floor(daysSince),
+      daysRecovered: daysRecovered,
       rewards: appliedRewards,
       coins: totalCoins,
       isSupplemental: true,
+      isSpecialReward: isSpecialRewardDay(user.signInStreak),
       user: { ...user }
     }
   });

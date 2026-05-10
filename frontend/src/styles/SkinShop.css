@@ -407,26 +407,103 @@
 .detail-header {
   display: flex;
   align-items: center;
-  gap: 20px;
+  justify-content: center;
+  gap: 15px;
   padding: 25px;
   background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  position: relative;
 }
 
-.detail-preview {
-  width: 100px;
-  height: 100px;
+.nav-btn {
+  width: 45px;
+  height: 45px;
+  border: none;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 50%;
+  font-size: 1.5rem;
+  color: #667eea;
+  cursor: pointer;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 20px;
+}
+
+.nav-btn:hover {
+  background: rgba(102, 126, 234, 0.3);
+  transform: scale(1.1);
+}
+
+.nav-btn:active {
+  transform: scale(0.95);
+}
+
+.nav-btn-left {
+  position: absolute;
+  left: 20px;
+}
+
+.nav-btn-right {
+  position: absolute;
+  right: 20px;
+}
+
+.detail-preview {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 25px;
+  position: relative;
 }
 
 .detail-icon {
-  font-size: 4rem;
+  font-size: 5rem;
+}
+
+.unlocked-badge {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: #4CAF50;
+  color: white;
+  padding: 5px 12px;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.4);
+}
+
+.detail-indicators {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0;
+  background: #f8f9fa;
+}
+
+.indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ddd;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.indicator:hover {
+  background: #bbb;
+}
+
+.indicator.active {
+  background: #667eea;
+  transform: scale(1.2);
 }
 
 .detail-info {
-  flex: 1;
+  text-align: center;
+  padding: 15px 25px 0;
 }
 
 .detail-info h2 {
@@ -542,6 +619,18 @@
   cursor: not-allowed;
 }
 
+.btn-disabled {
+  flex: 1;
+  padding: 14px;
+  font-size: 1rem;
+  border: 2px solid #ddd;
+  background: #f5f5f5;
+  color: #999;
+  border-radius: 10px;
+  text-align: center;
+  cursor: default;
+}
+
 @media (max-width: 768px) {
   .skin-shop-page {
     padding: 15px;
@@ -589,9 +678,30 @@
   }
 
   .detail-header {
-    flex-direction: column;
-    text-align: center;
-    gap: 15px;
+    gap: 10px;
+  }
+
+  .nav-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .nav-btn-left {
+    left: 15px;
+  }
+
+  .nav-btn-right {
+    right: 15px;
+  }
+
+  .detail-preview {
+    width: 100px;
+    height: 100px;
+  }
+
+  .detail-icon {
+    font-size: 4rem;
   }
 
   .detail-actions {
@@ -599,6 +709,10 @@
   }
 
   .detail-actions .btn {
+    width: 100%;
+  }
+
+  .btn-disabled {
     width: 100%;
   }
 }

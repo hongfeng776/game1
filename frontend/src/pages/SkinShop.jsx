@@ -89,6 +89,18 @@ function SkinShop() {
 
   const currentTabSkins = skinsData ? (activeTab === 'common' ? skinsData.commonSkins : skinsData.rareSkins) : [];
 
+  const navigateSkin = (direction) => {
+    if (!selectedSkin || currentTabSkins.length === 0) return;
+    const currentIndex = currentTabSkins.findIndex(skin => skin.id === selectedSkin.id);
+    let newIndex = currentIndex + direction;
+    if (newIndex < 0) {
+      newIndex = currentTabSkins.length - 1;
+    } else if (newIndex >= currentTabSkins.length) {
+      newIndex = 0;
+    }
+    setSelectedSkin(currentTabSkins[newIndex]);
+  };
+
   if (loading || !skinsData) {
     return (
       <div className="skin-shop-page">
@@ -251,6 +263,16 @@ function SkinShop() {
           <div className="skin-detail-overlay" onClick={() => setSelectedSkin(null)}>
             <div className="skin-detail-card card" onClick={e => e.stopPropagation()}>
               <div className="detail-header">
+                <button 
+                  className="nav-btn nav-btn-left"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigateSkin(-1);
+                  }}
+                >
+                  ◀
+                </button>
+                
                 <div 
                   className="detail-preview"
                   style={{
@@ -261,14 +283,41 @@ function SkinShop() {
                   }}
                 >
                   <span className="detail-icon">{selectedSkin.icon}</span>
+                  {selectedSkin.unlocked && (
+                    <div className="unlocked-badge">✓ 已解锁</div>
+                  )}
                 </div>
-                <div className="detail-info">
-                  <h2>{selectedSkin.name}</h2>
-                  <span className="detail-rarity" style={{ color: getSkinRarity(selectedSkin.rarity).color }}>
-                    {getSkinRarity(selectedSkin.rarity).name}
-                    {selectedSkin.isSpecial && ' ⭐'}
-                  </span>
-                </div>
+                
+                <button 
+                  className="nav-btn nav-btn-right"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigateSkin(1);
+                  }}
+                >
+                  ▶
+                </button>
+              </div>
+
+              <div className="detail-indicators">
+                {currentTabSkins.map((skin, index) => (
+                  <span 
+                    key={skin.id}
+                    className={`indicator ${selectedSkin.id === skin.id ? 'active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedSkin(skin);
+                    }}
+                  ></span>
+                ))}
+              </div>
+
+              <div className="detail-info">
+                <h2>{selectedSkin.name}</h2>
+                <span className="detail-rarity" style={{ color: getSkinRarity(selectedSkin.rarity).color }}>
+                  {getSkinRarity(selectedSkin.rarity).name}
+                  {selectedSkin.isSpecial && ' ⭐'}
+                </span>
               </div>
 
               <div className="detail-description">
@@ -330,7 +379,7 @@ function SkinShop() {
                   关闭
                 </button>
                 
-                {!selectedSkin.unlocked && selectedSkin.type === 'common' && (
+                {selectedSkin.type === 'common' && !selectedSkin.unlocked && (
                   <button
                     className={`btn btn-primary ${skinsData.userCoins < selectedSkin.price ? 'disabled' : ''}`}
                     onClick={() => handleBuySkin(selectedSkin.id, selectedSkin)}
@@ -340,7 +389,7 @@ function SkinShop() {
                   </button>
                 )}
 
-                {selectedSkin.unlocked && !selectedSkin.isWearing && (
+                {selectedSkin.type === 'common' && selectedSkin.unlocked && !selectedSkin.isWearing && (
                   <button
                     className="btn btn-secondary"
                     onClick={() => handleWearSkin(selectedSkin.id, selectedSkin)}
@@ -348,6 +397,24 @@ function SkinShop() {
                   >
                     {wearing ? '穿戴中...' : '👕 穿戴'}
                   </button>
+                )}
+
+                {selectedSkin.type === 'common' && selectedSkin.unlocked && selectedSkin.isWearing && (
+                  <div className="btn btn-disabled">✅ 已穿戴</div>
+                )}
+
+                {selectedSkin.type === 'rare' && selectedSkin.unlocked && !selectedSkin.isWearing && (
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => handleWearSkin(selectedSkin.id, selectedSkin)}
+                    disabled={wearing}
+                  >
+                    {wearing ? '穿戴中...' : '👕 穿戴'}
+                  </button>
+                )}
+
+                {selectedSkin.type === 'rare' && selectedSkin.unlocked && selectedSkin.isWearing && (
+                  <div className="btn btn-disabled">✅ 已穿戴</div>
                 )}
               </div>
             </div>

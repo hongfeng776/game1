@@ -9,6 +9,7 @@ import Hero from './pages/Hero'
 import Inventory from './pages/Inventory'
 import SignIn from './pages/SignIn'
 import SkinShop from './pages/SkinShop'
+import Leaderboard from './pages/Leaderboard'
 import { GameProvider } from './context/GameContext'
 import './styles/App.css'
 
@@ -32,6 +33,9 @@ function Navbar() {
           </Link>
           <Link to="/skinshop" className={`nav-link ${isActive('/skinshop') ? 'active' : ''}`}>
             🎨 皮肤商店
+          </Link>
+          <Link to="/leaderboard" className={`nav-link ${isActive('/leaderboard') ? 'active' : ''}`}>
+            🏆 排行榜
           </Link>
           <Link to="/hero" className={`nav-link ${isActive('/hero') ? 'active' : ''}`}>
             🦸 角色养成
@@ -71,6 +75,10 @@ function MobileNavbar() {
         📅
         <span>签到</span>
       </Link>
+      <Link to="/leaderboard" className={`mobile-nav-link ${isActive('/leaderboard') ? 'active' : ''}`}>
+        🏆
+        <span>排行</span>
+      </Link>
       <Link to="/hero" className={`mobile-nav-link ${isActive('/hero') ? 'active' : ''}`}>
         🦸
         <span>养成</span>
@@ -105,6 +113,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/signin" element={<SignIn />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/hero" element={<Hero />} />
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/start" element={<Start />} />

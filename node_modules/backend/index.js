@@ -851,6 +851,485 @@ Object.keys(LEVEL_MAPS).forEach(levelId => {
   });
 });
 
+const mockPlayers = [
+  {
+    id: 1,
+    nickname: '战神阿瑞斯',
+    avatar: '',
+    level: 45,
+    experience: 4500,
+    nextLevelExp: 1000,
+    coins: 95000,
+    diamonds: 850,
+    totalStars: 250,
+    completedLevels: 85,
+    achievementCount: 35,
+    maxHp: 850,
+    attack: 125,
+    defense: 85,
+    speed: 2.1,
+    hp: 850,
+    attributeLevels: {
+      hp: 45,
+      attack: 42,
+      defense: 40,
+      speed: 38
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 45,
+    hasFirstHardClearReward: true,
+    currentSkin: 'cosmic_mage',
+    unlockedSkins: ['default', 'fire_mage', 'ice_mage', 'thunder_mage', 'nature_mage', 'shadow_mage', 'golden_mage', 'rainbow_mage', 'cosmic_mage']
+  },
+  {
+    id: 2,
+    nickname: '雷霆战神',
+    avatar: '',
+    level: 38,
+    experience: 3800,
+    nextLevelExp: 1000,
+    coins: 78000,
+    diamonds: 620,
+    totalStars: 210,
+    completedLevels: 72,
+    achievementCount: 28,
+    maxHp: 720,
+    attack: 105,
+    defense: 72,
+    speed: 1.9,
+    hp: 720,
+    attributeLevels: {
+      hp: 38,
+      attack: 35,
+      defense: 33,
+      speed: 32
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 38,
+    hasFirstHardClearReward: true,
+    currentSkin: 'rainbow_mage',
+    unlockedSkins: ['default', 'fire_mage', 'ice_mage', 'thunder_mage', 'nature_mage', 'shadow_mage', 'golden_mage', 'rainbow_mage']
+  },
+  {
+    id: 3,
+    nickname: '暗影猎手',
+    avatar: '',
+    level: 32,
+    experience: 3200,
+    nextLevelExp: 1000,
+    coins: 65000,
+    diamonds: 480,
+    totalStars: 180,
+    completedLevels: 62,
+    achievementCount: 22,
+    maxHp: 620,
+    attack: 90,
+    defense: 62,
+    speed: 1.7,
+    hp: 620,
+    attributeLevels: {
+      hp: 32,
+      attack: 30,
+      defense: 28,
+      speed: 27
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 32,
+    hasFirstHardClearReward: true,
+    currentSkin: 'golden_mage',
+    unlockedSkins: ['default', 'fire_mage', 'ice_mage', 'thunder_mage', 'nature_mage', 'shadow_mage', 'golden_mage']
+  },
+  {
+    id: 4,
+    nickname: '冰霜女王',
+    avatar: '',
+    level: 28,
+    experience: 2800,
+    nextLevelExp: 1000,
+    coins: 56000,
+    diamonds: 420,
+    totalStars: 155,
+    completedLevels: 55,
+    achievementCount: 18,
+    maxHp: 540,
+    attack: 80,
+    defense: 55,
+    speed: 1.6,
+    hp: 540,
+    attributeLevels: {
+      hp: 28,
+      attack: 26,
+      defense: 25,
+      speed: 24
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 28,
+    hasFirstHardClearReward: true,
+    currentSkin: 'ice_mage',
+    unlockedSkins: ['default', 'fire_mage', 'ice_mage', 'thunder_mage', 'nature_mage', 'shadow_mage']
+  },
+  {
+    id: 5,
+    nickname: '火焰大师',
+    avatar: '',
+    level: 25,
+    experience: 2500,
+    nextLevelExp: 1000,
+    coins: 50000,
+    diamonds: 380,
+    totalStars: 140,
+    completedLevels: 48,
+    achievementCount: 15,
+    maxHp: 480,
+    attack: 72,
+    defense: 50,
+    speed: 1.5,
+    hp: 480,
+    attributeLevels: {
+      hp: 25,
+      attack: 24,
+      defense: 22,
+      speed: 22
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 25,
+    hasFirstHardClearReward: true,
+    currentSkin: 'fire_mage',
+    unlockedSkins: ['default', 'fire_mage', 'ice_mage', 'thunder_mage', 'nature_mage']
+  },
+  {
+    id: 6,
+    nickname: '自然守护者',
+    avatar: '',
+    level: 22,
+    experience: 2200,
+    nextLevelExp: 1000,
+    coins: 44000,
+    diamonds: 320,
+    totalStars: 125,
+    completedLevels: 42,
+    achievementCount: 13,
+    maxHp: 430,
+    attack: 65,
+    defense: 45,
+    speed: 1.45,
+    hp: 430,
+    attributeLevels: {
+      hp: 22,
+      attack: 21,
+      defense: 20,
+      speed: 19
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 22,
+    hasFirstHardClearReward: true,
+    currentSkin: 'nature_mage',
+    unlockedSkins: ['default', 'fire_mage', 'ice_mage', 'thunder_mage', 'nature_mage']
+  },
+  {
+    id: 7,
+    nickname: '闪电侠',
+    avatar: '',
+    level: 20,
+    experience: 2000,
+    nextLevelExp: 1000,
+    coins: 40000,
+    diamonds: 300,
+    totalStars: 115,
+    completedLevels: 38,
+    achievementCount: 12,
+    maxHp: 400,
+    attack: 60,
+    defense: 42,
+    speed: 1.5,
+    hp: 400,
+    attributeLevels: {
+      hp: 20,
+      attack: 19,
+      defense: 18,
+      speed: 20
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 20,
+    hasFirstHardClearReward: true,
+    currentSkin: 'thunder_mage',
+    unlockedSkins: ['default', 'fire_mage', 'ice_mage', 'thunder_mage']
+  },
+  {
+    id: 8,
+    nickname: '勇敢的心',
+    avatar: '',
+    level: 18,
+    experience: 1800,
+    nextLevelExp: 1000,
+    coins: 36000,
+    diamonds: 280,
+    totalStars: 105,
+    completedLevels: 35,
+    achievementCount: 10,
+    maxHp: 360,
+    attack: 55,
+    defense: 40,
+    speed: 1.35,
+    hp: 360,
+    attributeLevels: {
+      hp: 18,
+      attack: 17,
+      defense: 16,
+      speed: 15
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 18,
+    hasFirstHardClearReward: true,
+    currentSkin: 'fire_mage',
+    unlockedSkins: ['default', 'fire_mage', 'ice_mage']
+  },
+  {
+    id: 9,
+    nickname: '新手冒险家',
+    avatar: '',
+    level: 15,
+    experience: 1500,
+    nextLevelExp: 1000,
+    coins: 30000,
+    diamonds: 220,
+    totalStars: 90,
+    completedLevels: 30,
+    achievementCount: 8,
+    maxHp: 300,
+    attack: 45,
+    defense: 35,
+    speed: 1.3,
+    hp: 300,
+    attributeLevels: {
+      hp: 15,
+      attack: 14,
+      defense: 13,
+      speed: 12
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 15,
+    hasFirstHardClearReward: false,
+    currentSkin: 'default',
+    unlockedSkins: ['default', 'fire_mage']
+  },
+  {
+    id: 10,
+    nickname: '小菜鸟',
+    avatar: '',
+    level: 12,
+    experience: 1200,
+    nextLevelExp: 1000,
+    coins: 24000,
+    diamonds: 180,
+    totalStars: 75,
+    completedLevels: 25,
+    achievementCount: 6,
+    maxHp: 250,
+    attack: 38,
+    defense: 30,
+    speed: 1.25,
+    hp: 250,
+    attributeLevels: {
+      hp: 12,
+      attack: 11,
+      defense: 10,
+      speed: 9
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 12,
+    hasFirstHardClearReward: false,
+    currentSkin: 'default',
+    unlockedSkins: ['default']
+  },
+  {
+    id: 11,
+    nickname: '潜力新星',
+    avatar: '',
+    level: 10,
+    experience: 1000,
+    nextLevelExp: 1000,
+    coins: 20000,
+    diamonds: 150,
+    totalStars: 60,
+    completedLevels: 20,
+    achievementCount: 5,
+    maxHp: 220,
+    attack: 33,
+    defense: 26,
+    speed: 1.2,
+    hp: 220,
+    attributeLevels: {
+      hp: 10,
+      attack: 9,
+      defense: 8,
+      speed: 8
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 10,
+    hasFirstHardClearReward: false,
+    currentSkin: 'default',
+    unlockedSkins: ['default']
+  },
+  {
+    id: 12,
+    nickname: '初露锋芒',
+    avatar: '',
+    level: 8,
+    experience: 800,
+    nextLevelExp: 1000,
+    coins: 16000,
+    diamonds: 120,
+    totalStars: 50,
+    completedLevels: 16,
+    achievementCount: 4,
+    maxHp: 180,
+    attack: 28,
+    defense: 22,
+    speed: 1.15,
+    hp: 180,
+    attributeLevels: {
+      hp: 8,
+      attack: 7,
+      defense: 6,
+      speed: 6
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: 8,
+    hasFirstHardClearReward: false,
+    currentSkin: 'default',
+    unlockedSkins: ['default']
+  }
+];
+
+const mockPlayersPool = [
+  '游戏达人', '快乐玩家', '高手如云', '独孤求败', '一代宗师',
+  '武林盟主', '江湖侠士', '侠客行', '笑傲江湖', '神雕侠侣',
+  '倚天屠龙', '天龙八部', '射雕英雄', '碧血剑', '鹿鼎记',
+  '风云再起', '战无不胜', '攻无不克', '百战百胜', '天下无双',
+  '绝世高手', '隐世高人', '武林神话', '传奇人物', '千古一帝',
+  '王者归来', '不败神话', '至尊强者', '巅峰王者', '荣耀王者'
+];
+
+function generateRandomPlayer(id) {
+  const nickname = mockPlayersPool[(id - 1) % mockPlayersPool.length] + (Math.floor(id / 30) > 0 ? id : '');
+  const level = Math.max(1, 45 - Math.floor(id / 2));
+  const completedLevels = Math.max(1, 85 - Math.floor(id * 2));
+  const totalStars = Math.max(3, 250 - Math.floor(id * 5));
+  
+  return {
+    id,
+    nickname,
+    avatar: '',
+    level,
+    experience: level * 100,
+    nextLevelExp: 1000,
+    coins: Math.max(500, 95000 - id * 2000),
+    diamonds: Math.max(10, 850 - id * 15),
+    totalStars,
+    completedLevels,
+    achievementCount: Math.max(1, 35 - Math.floor(id / 2)),
+    maxHp: Math.max(100, 850 - id * 15),
+    attack: Math.max(10, 125 - id * 2),
+    defense: Math.max(5, 85 - id * 1.5),
+    speed: Math.max(1, 2.1 - id * 0.02),
+    hp: Math.max(100, 850 - id * 15),
+    attributeLevels: {
+      hp: Math.max(1, 45 - Math.floor(id / 2)),
+      attack: Math.max(1, 42 - Math.floor(id / 2)),
+      defense: Math.max(1, 40 - Math.floor(id / 2)),
+      speed: Math.max(1, 38 - Math.floor(id / 2))
+    },
+    inventory: {},
+    carriedItems: [],
+    lastSignInDate: null,
+    signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
+    completedAchievements: [],
+    previousLevel: level,
+    hasFirstHardClearReward: id <= 10,
+    currentSkin: 'default',
+    unlockedSkins: ['default']
+  };
+}
+
+for (let i = 13; i <= 120; i++) {
+  mockPlayers.push(generateRandomPlayer(i));
+}
+
 function getLevelExpRequirement(level) {
   return 100 + (level - 1) * 50;
 }
@@ -1836,6 +2315,162 @@ app.get('/api/skins/current', (req, res) => {
     data: {
       skinId: user.currentSkin,
       skin: skin
+    }
+  });
+});
+
+const LEADERBOARD_CONFIG = {
+  maxDisplay: 100,
+  updateInterval: 60000,
+  types: {
+    levels: {
+      name: '通关层数',
+      sortBy: 'completedLevels',
+      secondarySort: 'totalStars',
+      icon: '🎯'
+    },
+    level: {
+      name: '玩家等级',
+      sortBy: 'level',
+      secondarySort: 'experience',
+      icon: '🦸'
+    }
+  }
+};
+
+let leaderboardCache = {
+  levels: {
+    lastUpdate: null,
+    players: [],
+    myRank: null
+  },
+  level: {
+    lastUpdate: null,
+    players: [],
+    myRank: null
+  }
+};
+
+function getAllPlayersForLeaderboard() {
+  const allPlayers = [
+    { ...mockData.user, id: 0 },
+    ...mockPlayers
+  ];
+  return allPlayers;
+}
+
+function sortPlayersByType(players, type) {
+  const config = LEADERBOARD_CONFIG.types[type];
+  if (!config) return players;
+
+  return players.sort((a, b) => {
+    if (b[config.sortBy] !== a[config.sortBy]) {
+      return b[config.sortBy] - a[config.sortBy];
+    }
+    if (b[config.secondarySort] !== a[config.secondarySort]) {
+      return b[config.secondarySort] - a[config.secondarySort];
+    }
+    return a.id - b.id;
+  });
+}
+
+function formatPlayerForLeaderboard(player, rank, type) {
+  return {
+    rank,
+    playerId: player.id,
+    nickname: player.nickname,
+    level: player.level,
+    avatar: player.avatar || '',
+    currentSkin: player.currentSkin || 'default',
+    completedLevels: player.completedLevels,
+    totalStars: player.totalStars,
+    isCurrentUser: player.id === 0,
+    score: type === 'levels' ? player.completedLevels : player.level
+  };
+}
+
+function updateLeaderboard(type) {
+  const config = LEADERBOARD_CONFIG.types[type];
+  if (!config) return;
+
+  console.log(`[排行榜] 开始更新 ${config.name} 排行榜...`);
+
+  const allPlayers = getAllPlayersForLeaderboard();
+  const sortedPlayers = sortPlayersByType(allPlayers, type);
+
+  const topPlayers = sortedPlayers.slice(0, LEADERBOARD_CONFIG.maxDisplay);
+  
+  let myRank = null;
+  for (let i = 0; i < sortedPlayers.length; i++) {
+    if (sortedPlayers[i].id === 0) {
+      myRank = i + 1;
+      break;
+    }
+  }
+
+  leaderboardCache[type] = {
+    lastUpdate: new Date().toISOString(),
+    players: topPlayers.map((player, index) => 
+      formatPlayerForLeaderboard(player, index + 1, type)
+    ),
+    myRank,
+    myData: myRank ? formatPlayerForLeaderboard(mockData.user, myRank, type) : null,
+    totalPlayers: sortedPlayers.length
+  };
+
+  console.log(`[排行榜] ${config.name} 排行榜更新完成，共 ${sortedPlayers.length} 名玩家，当前玩家排名: ${myRank}`);
+}
+
+function updateAllLeaderboards() {
+  Object.keys(LEADERBOARD_CONFIG.types).forEach(type => {
+    updateLeaderboard(type);
+  });
+}
+
+updateAllLeaderboards();
+
+const leaderboardInterval = setInterval(() => {
+  updateAllLeaderboards();
+}, LEADERBOARD_CONFIG.updateInterval);
+
+app.get('/api/leaderboard', (req, res) => {
+  const { type = 'levels' } = req.query;
+  
+  if (!LEADERBOARD_CONFIG.types[type]) {
+    return res.status(400).json({
+      success: false,
+      message: `无效的排行榜类型: ${type}`,
+      validTypes: Object.keys(LEADERBOARD_CONFIG.types)
+    });
+  }
+
+  const cache = leaderboardCache[type];
+
+  res.json({
+    success: true,
+    data: {
+      type,
+      typeName: LEADERBOARD_CONFIG.types[type].name,
+      typeIcon: LEADERBOARD_CONFIG.types[type].icon,
+      maxDisplay: LEADERBOARD_CONFIG.maxDisplay,
+      lastUpdate: cache.lastUpdate,
+      players: cache.players,
+      myRank: cache.myRank,
+      myData: cache.myData,
+      totalPlayers: cache.totalPlayers
+    }
+  });
+});
+
+app.get('/api/leaderboard/types', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      types: Object.entries(LEADERBOARD_CONFIG.types).map(([key, value]) => ({
+        type: key,
+        name: value.name,
+        icon: value.icon
+      }))
     }
   });
 });

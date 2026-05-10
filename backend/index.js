@@ -1010,6 +1010,22 @@ function updateTaskProgress(user, trackType, amount = 1) {
   return updated;
 }
 
+const ENDLESS_CONFIG = {
+  rewardInterval: 5,
+  rewards: [
+    { itemId: 'hp_potion', quantity: 2 },
+    { itemId: 'attack_boost', quantity: 1 },
+    { itemId: 'revive_scroll', quantity: 1 }
+  ],
+  difficultyIncrease: {
+    monsterMultiplier: 0.05,
+    monsterSpeedMultiplier: 0.02,
+    damageMultiplier: 0.1
+  },
+  baseCoins: 50,
+  baseExp: 25
+};
+
 const mockData = {
   user: {
     id: 1,
@@ -1052,7 +1068,10 @@ const mockData = {
     dailyTasks: null,
     lastDailyTaskDate: null,
     dailyTaskRefreshCount: 1,
-    lastDailyTaskRefreshDate: null
+    lastDailyTaskRefreshDate: null,
+    endlessHighestLevel: 0,
+    endlessTotalRuns: 0,
+    endlessBestRun: null
   },
   levels: [],
   chapters: JSON.parse(JSON.stringify(CHAPTERS)),
@@ -3013,6 +3032,264 @@ app.get('/api/leaderboard/types', (req, res) => {
         name: value.name,
         icon: value.icon
       }))
+    }
+  });
+});
+
+function getEndlessLevelIndex(levelIndex) {
+  const totalLevels = Object.keys(LEVEL_MAPS).length;
+  const normalizedIndex = ((levelIndex - 1) % totalLevels) + 1;
+  return normalizedIndex;
+}
+
+function getEndlessDifficultyMultiplier(levelIndex) {
+  const cycles = Math.floor((levelIndex - 1) / Object.keys(LEVEL_MAPS).length);
+  return {
+    monsterMultiplier: 1 + cycles * ENDLESS_CONFIG.difficultyIncrease.monsterMultiplier,
+    monsterSpeedMultiplier: 1 + cycles * ENDLESS_CONFIG.difficultyIncrease.monsterSpeedMultiplier,
+    damageMultiplier: 1 + cycles * ENDLESS_CONFIG.difficultyIncrease.damageMultiplier
+  };
+}
+
+function getEndlessMap(levelIndex) {
+  const normalizedLevelId = getEndlessLevelIndex(levelIndex);
+  const baseMap = LEVEL_MAPS[normalizedLevelId];
+  
+  if (!baseMap) return null;
+  
+  const multiplier = getEndlessDifficultyMultiplier(levelIndex);
+  const cycles = Math.floor((levelIndex - 1) / Object.keys(LEVEL_MAPS).length);
+  
+  return {
+    ...baseMap,
+    id: levelIndex,
+    name: `无尽模式 - 第 ${levelIndex} 关`,
+    chapterId: 'endless',
+    cycle: cycles + 1,
+    baseLevelId: normalizedLevelId,
+    multiplier,
+    coins: Math.floor(baseMap.coins * (1 + cycles * 0.5)),
+    experience: Math.floor(baseMap.experience * (1 + cycles * 0.3)),
+    timeLimit: baseMap.timeLimit
+  };
+}
+
+function getEndlessMonsters(levelIndex, baseMonsters) {
+  const multiplier = getEndlessDifficultyMultiplier(levelIndex);
+  
+  return baseMonsters.map(monster => ({
+    ...monster,
+    damage: Math.floor(monster.damage * multiplier.damageMultiplier),
+    moveInterval: Math.floor(monster.baseMoveInterval / multiplier.monsterSpeedMultiplier)
+  }));
+}
+
+function getEndlessMilestoneReward(levelIndex) {
+  if (levelIndex % ENDLESS_CONFIG.rewardInterval !== 0) return null;
+  
+  const rewardIndex = Math.floor((levelIndex / ENDLESS_CONFIG.rewardInterval - 1) % ENDLESS_CONFIG.rewards.length);
+  const baseReward = ENDLESS_CONFIG.rewards[rewardIndex];
+  
+  const cycles = Math.floor(levelIndex / (ENDLESS_CONFIG.rewardInterval * ENDLESS_CONFIG.rewards.length));
+  const quantityMultiplier = 1 + Math.floor(cycles / 2);
+  
+  return {
+    ...baseReward,
+    quantity: baseReward.quantity * quantityMultiplier,
+    milestone: levelIndex
+  };
+}
+
+app.get('/api/endless/status', (req, res) => {
+  const user = mockData.user;
+  
+  res.json({
+    success: true,
+    data: {
+      highestLevel: user.endlessHighestLevel || 0,
+      totalRuns: user.endlessTotalRuns || 0,
+      bestRun: user.endlessBestRun,
+      config: {
+        rewardInterval: ENDLESS_CONFIG.rewardInterval,
+        rewards: ENDLESS_CONFIG.rewards.map(r => ({
+          ...r,
+          item: getItem(r.itemId)
+        }))
+      },
+      user: { ...user }
+    }
+  });
+});
+
+app.get('/api/endless/map/:levelIndex', (req, res) => {
+  const levelIndex = parseInt(req.params.levelIndex);
+  
+  if (levelIndex < 1) {
+    return res.status(400).json({ success: false, message: '关卡索引必须大于0' });
+  }
+  
+  const map = getEndlessMap(levelIndex);
+  if (!map) {
+    return res.status(404).json({ success: false, message: '关卡不存在' });
+  }
+  
+  const normalizedLevelId = getEndlessLevelIndex(levelIndex);
+  const baseMonsters = getDefaultMonsters(normalizedLevelId);
+  const multiplier = getEndlessDifficultyMultiplier(levelIndex);
+  
+  const adjustedMonsters = baseMonsters.map(monster => ({
+    ...monster,
+    damage: Math.floor(monster.damage * multiplier.damageMultiplier),
+    moveInterval: Math.floor(monster.baseMoveInterval / multiplier.monsterSpeedMultiplier)
+  }));
+  
+  let finalMonsters = adjustedMonsters;
+  if (multiplier.monsterMultiplier > 1) {
+    const extraCount = Math.floor(baseMonsters.length * (multiplier.monsterMultiplier - 1));
+    for (let i = 0; i < extraCount; i++) {
+      const baseMonster = adjustedMonsters[i % adjustedMonsters.length];
+      finalMonsters.push({
+        ...baseMonster,
+        id: `monster-endless-${finalMonsters.length}`,
+        x: baseMonster.x + 1 < map.width ? baseMonster.x + 1 : baseMonster.x,
+        y: baseMonster.y
+      });
+    }
+  }
+  
+  const milestoneReward = getEndlessMilestoneReward(levelIndex);
+  
+  res.json({
+    success: true,
+    data: {
+      ...map,
+      monsters: finalMonsters,
+      isMilestone: levelIndex % ENDLESS_CONFIG.rewardInterval === 0,
+      milestoneReward: milestoneReward ? {
+        ...milestoneReward,
+        item: getItem(milestoneReward.itemId)
+      } : null,
+      difficultyConfig: {
+        id: 'endless',
+        name: `循环 ${map.cycle}`,
+        icon: '♾️',
+        color: '#9C27B0',
+        monsterMultiplier: multiplier.monsterMultiplier,
+        monsterSpeedMultiplier: multiplier.monsterSpeedMultiplier,
+        coinMultiplier: 1 + (map.cycle - 1) * 0.5
+      }
+    }
+  });
+});
+
+app.post('/api/endless/complete', (req, res) => {
+  const { levelIndex, timeUsed } = req.body;
+  const user = mockData.user;
+  
+  if (!levelIndex || levelIndex < 1) {
+    return res.status(400).json({ success: false, message: '无效的关卡索引' });
+  }
+  
+  const map = getEndlessMap(levelIndex);
+  if (!map) {
+    return res.status(404).json({ success: false, message: '关卡不存在' });
+  }
+  
+  const coins = map.coins;
+  const exp = map.experience;
+  
+  user.coins += coins;
+  user.experience += exp;
+  
+  const leveledUp = checkLevelUp(user);
+  
+  const milestoneReward = getEndlessMilestoneReward(levelIndex);
+  let appliedMilestoneReward = null;
+  
+  if (milestoneReward) {
+    const result = addItemToInventory(user, milestoneReward.itemId, milestoneReward.quantity);
+    if (result.success) {
+      appliedMilestoneReward = {
+        ...milestoneReward,
+        item: getItem(milestoneReward.itemId)
+      };
+    }
+  }
+  
+  const drops = generateRandomDrops(map.baseLevelId);
+  const appliedDrops = applyDropsToInventory(user, drops);
+  
+  const newHighest = levelIndex > (user.endlessHighestLevel || 0);
+  if (newHighest) {
+    user.endlessHighestLevel = levelIndex;
+  }
+  
+  const taskUpdated = updateTaskProgress(user, 'level_complete', 1);
+  
+  const isNewRecord = !user.endlessBestRun || levelIndex > user.endlessBestRun.level;
+  if (isNewRecord) {
+    user.endlessBestRun = {
+      level: levelIndex,
+      timeUsed,
+      coins,
+      date: new Date().toISOString()
+    };
+  }
+  
+  user.hp = user.maxHp;
+  
+  res.json({
+    success: true,
+    data: {
+      levelIndex,
+      coins,
+      experience: exp,
+      leveledUp,
+      drops: appliedDrops,
+      milestoneReward: appliedMilestoneReward,
+      isMilestone: levelIndex % ENDLESS_CONFIG.rewardInterval === 0,
+      newHighest,
+      isNewRecord,
+      taskUpdated,
+      user: { ...user }
+    }
+  });
+});
+
+app.post('/api/endless/fail', (req, res) => {
+  const { levelIndex, timeUsed, totalCoinsEarned, totalExpEarned } = req.body;
+  const user = mockData.user;
+  
+  user.endlessTotalRuns = (user.endlessTotalRuns || 0) + 1;
+  
+  const reachedLevel = levelIndex - 1;
+  const isNewRecord = reachedLevel > 0 && (!user.endlessBestRun || reachedLevel > user.endlessBestRun.level);
+  
+  if (isNewRecord && reachedLevel > 0) {
+    user.endlessBestRun = {
+      level: reachedLevel,
+      timeUsed,
+      coins: totalCoinsEarned || 0,
+      date: new Date().toISOString()
+    };
+  }
+  
+  const newHighest = reachedLevel > (user.endlessHighestLevel || 0);
+  if (newHighest && reachedLevel > 0) {
+    user.endlessHighestLevel = reachedLevel;
+  }
+  
+  user.hp = user.maxHp;
+  
+  res.json({
+    success: true,
+    data: {
+      reachedLevel,
+      isNewRecord,
+      newHighest,
+      totalCoinsEarned: totalCoinsEarned || 0,
+      totalExpEarned: totalExpEarned || 0,
+      user: { ...user }
     }
   });
 });

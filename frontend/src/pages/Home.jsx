@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { userAPI, signInAPI } from '../services/api'
+import { userAPI, signInAPI, endlessAPI } from '../services/api'
 import { useGameContext } from '../context/GameContext'
 import '../styles/Home.css'
 
 function Home() {
   const [user, setUser] = useState(null)
   const [signInStatus, setSignInStatus] = useState(null)
+  const [endlessStatus, setEndlessStatus] = useState(null)
   const [signInLoading, setSignInLoading] = useState(false)
   const [notification, setNotification] = useState(null)
   const { updateUser } = useGameContext()
@@ -26,10 +27,22 @@ function Home() {
       if (signInRes.success) {
         setSignInStatus(signInRes.data)
       }
+      
+      const endlessRes = await endlessAPI.getStatus()
+      if (endlessRes.success) {
+        setEndlessStatus(endlessRes.data)
+      }
     } catch (error) {
       console.error('加载数据失败:', error)
     }
   }
+
+  const formatTime = (seconds) => {
+    if (!seconds) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type })
@@ -127,7 +140,42 @@ function Home() {
             <div className="action-icon">🎯</div>
             <span>选择关卡</span>
           </Link>
+          <Link to="/endless" className="btn btn-warning action-card endless-card">
+            <div className="action-icon">♾️</div>
+            <span>无尽模式</span>
+          </Link>
         </div>
+
+        {endlessStatus && (
+          <div className="endless-info card">
+            <div className="endless-header">
+              <div className="endless-icon">♾️</div>
+              <h3>无尽模式</h3>
+            </div>
+            <div className="endless-stats">
+              <div className="endless-stat-item">
+                <span className="endless-stat-icon">🏆</span>
+                <span className="endless-stat-value">{endlessStatus.highestLevel}</span>
+                <span className="endless-stat-label">最高层数</span>
+              </div>
+              <div className="endless-stat-item">
+                <span className="endless-stat-icon">🎮</span>
+                <span className="endless-stat-value">{endlessStatus.totalRuns}</span>
+                <span className="endless-stat-label">挑战次数</span>
+              </div>
+              {endlessStatus.bestRun && (
+                <div className="endless-stat-item">
+                  <span className="endless-stat-icon">⏱️</span>
+                  <span className="endless-stat-value">{formatTime(endlessStatus.bestRun.timeUsed)}</span>
+                  <span className="endless-stat-label">最佳时间</span>
+                </div>
+              )}
+            </div>
+            <div className="endless-rewards-info">
+              <span>每 {endlessStatus.config.rewardInterval} 关获得里程碑奖励</span>
+            </div>
+          </div>
+        )}
 
         {user && (
           <div className="user-preview card">

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { userAPI, saveAPI, backupAPI } from '../services/api';
+import { userAPI, saveAPI, backupAPI, accountAPI } from '../services/api';
+import saveService from '../services/saveService';
 
 const GameContext = createContext(null);
 
@@ -16,6 +17,7 @@ export function GameProvider({ children }) {
       const res = await userAPI.getUser();
       if (res.success) {
         setUser(res.data);
+        console.log('[存档] 用户数据已加载:', res.data.nickname);
       }
     } catch (error) {
       console.error('获取用户数据失败:', error);
@@ -61,20 +63,102 @@ export function GameProvider({ children }) {
     }
   }, []);
 
+  const reloadSaveData = useCallback(async () => {
+    try {
+      const res = await saveAPI.reload();
+      if (res.success) {
+        setUser(res.data.user);
+        console.log('[存档] 数据已从文件重新加载');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('[存档] 重新加载失败:', error);
+      return false;
+    }
+  }, []);
+
+  const switchAccount = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      
+      const currentDeviceId = saveService.getDeviceId();
+      console.log('[账号] 当前设备标识:', currentDeviceId);
+      
+      saveService.clear();
+      
+      const newDeviceId = saveService.generateNewDeviceId();
+      console.log('[账号] 新设备标识:', newDeviceId);
+      
+      const res = await accountAPI.switchAccount(newDeviceId);
+      if (res.success) {
+        setUser(res.data.user);
+        console.log('[账号] 已切换到新账号:', res.data.user.nickname);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('[账号] 切换失败:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const resetAccount = useCallback(async () => {
+    if (!window.confirm('确定要重置当前账号吗？所有游戏进度将被清除，此操作不可撤销！')) {
+      return false;
+    }
+    
+    try {
+      setIsLoading(true);
+      
+      const res = await accountAPI.resetAccount();
+      if (res.success) {
+        saveService.clear();
+        setUser(res.data.user);
+        console.log('[账号] 已重置账号:', res.data.user.nickname);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('[账号] 重置失败:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const handleRestoreBackup = useCallback(async (filename) => {
     try {
+      console.log('[备份] 开始恢复备份:', filename);
+      
       const res = await backupAPI.restore(filename);
       if (res.success) {
-        alert('备份恢复成功！');
+        console.log('[备份] 备份恢复成功，重新加载数据...');
+        
+        await saveAPI.clearCache();
+        
+        const reloadRes = await saveAPI.reload();
+        if (reloadRes.success) {
+          setUser(reloadRes.data.user);
+        } else {
+          await fetchUser();
+        }
+        
         setShowCorruptedModal(false);
         setSaveCorrupted(null);
-        await fetchUser();
+        
+        alert('备份恢复成功！');
+        return true;
       } else {
         alert(`恢复失败: ${res.error || '未知错误'}`);
+        return false;
       }
     } catch (error) {
       console.error('[备份] 恢复失败:', error);
       alert('恢复失败，请重试');
+      return false;
     }
   }, [fetchUser]);
 
@@ -116,8 +200,17 @@ export function GameProvider({ children }) {
   }, [fetchUser, checkSaveIntegrity]);
 
   return (
-    <GameContext.Provider value={{ user, isLoading, updateUser, refreshUser, saveGame }}>
-      {children}
+    <GameContext.Provider value={{ 
+      user, 
+      isLoading, 
+      updateUser, 
+      refreshUser, 
+      saveGame,
+      reloadSaveData,
+      switchAccount,
+      resetAccount,
+      handleRestoreBackup
+    }}>
       
       {showCorruptedModal && (
         <div className="modal-overlay" style={modalStyles.overlay}>

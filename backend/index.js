@@ -49,7 +49,7 @@ function setCurrentSaveData(deviceId, data) {
   }
 }
 
-function initDeviceData(deviceId) {
+function initDeviceData(deviceId, force = false) {
   if (!deviceId) return;
   
   const savePath = getSaveFilePath(deviceId);
@@ -59,7 +59,11 @@ function initDeviceData(deviceId) {
     fs.mkdirSync(backupDir, { recursive: true });
   }
   
-  if (!allDeviceData.has(deviceId)) {
+  if (force || !allDeviceData.has(deviceId)) {
+    if (force) {
+      console.log(`[存档] 强制重新初始化设备 ${deviceId} 的数据`);
+    }
+    
     const defaultLevels = [];
     Object.keys(LEVEL_MAPS).forEach(levelId => {
       const id = parseInt(levelId);
@@ -88,17 +92,27 @@ function initDeviceData(deviceId) {
         const data = fs.readFileSync(savePath, 'utf8');
         const saveData = JSON.parse(data);
         
-        if (saveData.user) deviceData.user = saveData.user;
+        if (saveData.user) deviceData.user = JSON.parse(JSON.stringify(saveData.user));
         if (saveData.levels) {
-          saveData.levels.forEach(savedLevel => {
+          deviceData.levels = saveData.levels.map(savedLevel => {
             const existingLevel = deviceData.levels.find(l => l.id === savedLevel.id);
             if (existingLevel) {
-              Object.assign(existingLevel, savedLevel);
+              return Object.assign({}, existingLevel, savedLevel);
             }
+            return savedLevel;
           });
         }
-        if (saveData.settings) deviceData.settings = saveData.settings;
-        console.log(`[存档] 已加载设备 ${deviceId} 的存档数据`);
+        if (saveData.chapters) {
+          deviceData.chapters = saveData.chapters.map(savedChapter => {
+            const existingChapter = deviceData.chapters.find(c => c.id === savedChapter.id);
+            if (existingChapter) {
+              return Object.assign({}, existingChapter, savedChapter);
+            }
+            return savedChapter;
+          });
+        }
+        if (saveData.settings) deviceData.settings = JSON.parse(JSON.stringify(saveData.settings));
+        console.log(`[存档] 已加载设备 ${deviceId} 的存档数据（包含章节数据）`);
       } catch (error) {
         console.error(`[存档] 加载设备 ${deviceId} 存档失败:`, error);
       }
@@ -106,6 +120,24 @@ function initDeviceData(deviceId) {
     
     allDeviceData.set(deviceId, deviceData);
   }
+}
+
+function clearDeviceCache(deviceId) {
+  if (deviceId && allDeviceData.has(deviceId)) {
+    allDeviceData.delete(deviceId);
+    console.log(`[存档] 已清理设备 ${deviceId} 的内存缓存`);
+    return true;
+  }
+  return false;
+}
+
+function reloadDeviceData(deviceId) {
+  if (!deviceId) return false;
+  
+  clearDeviceCache(deviceId);
+  initDeviceData(deviceId);
+  console.log(`[存档] 已重新加载设备 ${deviceId} 的数据`);
+  return true;
 }
 
 function generateChecksum(data) {
@@ -150,6 +182,7 @@ function saveGameData(deviceId) {
     const saveData = {
       user: dataToSave.user,
       levels: dataToSave.levels,
+      chapters: dataToSave.chapters,
       settings: dataToSave.settings,
       savedAt: new Date().toISOString()
     };
@@ -159,9 +192,9 @@ function saveGameData(deviceId) {
     fs.writeFileSync(savePath, JSON.stringify(saveData, null, 2));
     
     if (deviceId) {
-      console.log(`[存档] 设备 ${deviceId} 的游戏数据已保存`);
+      console.log(`[存档] 设备 ${deviceId} 的游戏数据已保存（包含章节数据）`);
     } else {
-      console.log('[存档] 游戏数据已保存');
+      console.log('[存档] 游戏数据已保存（包含章节数据）');
     }
     return true;
   } catch (error) {
@@ -184,19 +217,30 @@ function loadGameData(deviceId) {
         return { success: false, error: validation.error, corrupted: true };
       }
       
+      clearDeviceCache(deviceId);
       initDeviceData(deviceId);
       const deviceData = allDeviceData.get(deviceId);
-      if (saveData.user) deviceData.user = saveData.user;
+      if (saveData.user) deviceData.user = JSON.parse(JSON.stringify(saveData.user));
       if (saveData.levels) {
-        saveData.levels.forEach(savedLevel => {
+        deviceData.levels = saveData.levels.map(savedLevel => {
           const existingLevel = deviceData.levels.find(l => l.id === savedLevel.id);
           if (existingLevel) {
-            Object.assign(existingLevel, savedLevel);
+            return Object.assign({}, existingLevel, savedLevel);
           }
+          return savedLevel;
         });
       }
-      if (saveData.settings) deviceData.settings = saveData.settings;
-      console.log(`[存档] 设备 ${deviceId} 的游戏数据已加载，保存时间:`, saveData.savedAt);
+      if (saveData.chapters) {
+        deviceData.chapters = saveData.chapters.map(savedChapter => {
+          const existingChapter = deviceData.chapters.find(c => c.id === savedChapter.id);
+          if (existingChapter) {
+            return Object.assign({}, existingChapter, savedChapter);
+          }
+          return savedChapter;
+        });
+      }
+      if (saveData.settings) deviceData.settings = JSON.parse(JSON.stringify(saveData.settings));
+      console.log(`[存档] 设备 ${deviceId} 的游戏数据已加载（包含章节数据），保存时间:`, saveData.savedAt);
       
       return { success: true, saveData };
     }
@@ -250,6 +294,7 @@ function createBackup(name, deviceId) {
     const saveData = {
       user: dataToSave.user,
       levels: dataToSave.levels,
+      chapters: dataToSave.chapters,
       settings: dataToSave.settings,
       savedAt: new Date().toISOString()
     };
@@ -266,9 +311,9 @@ function createBackup(name, deviceId) {
     
     fs.writeFileSync(backupPath, JSON.stringify(saveData, null, 2));
     if (deviceId) {
-      console.log(`[备份] 设备 ${deviceId} 的备份已创建:`, backupName);
+      console.log(`[备份] 设备 ${deviceId} 的备份已创建（包含章节数据）:`, backupName);
     } else {
-      console.log('[备份] 备份已创建:', backupName);
+      console.log('[备份] 备份已创建（包含章节数据）:', backupName);
     }
     
     const backups = getBackupList(deviceId);
@@ -304,21 +349,37 @@ function restoreBackup(filename, deviceId) {
       return { success: false, error: validation.error, corrupted: true };
     }
     
-    initDeviceData(deviceId);
+    clearDeviceCache(deviceId);
+    initDeviceData(deviceId, true);
     const deviceData = allDeviceData.get(deviceId);
-    if (saveData.user) deviceData.user = saveData.user;
+    
+    if (saveData.user) {
+      deviceData.user = JSON.parse(JSON.stringify(saveData.user));
+    }
     if (saveData.levels) {
-      saveData.levels.forEach(savedLevel => {
+      deviceData.levels = saveData.levels.map(savedLevel => {
         const existingLevel = deviceData.levels.find(l => l.id === savedLevel.id);
         if (existingLevel) {
-          Object.assign(existingLevel, savedLevel);
+          return Object.assign({}, existingLevel, savedLevel);
         }
+        return savedLevel;
       });
     }
-    if (saveData.settings) deviceData.settings = saveData.settings;
+    if (saveData.chapters) {
+      deviceData.chapters = saveData.chapters.map(savedChapter => {
+        const existingChapter = deviceData.chapters.find(c => c.id === savedChapter.id);
+        if (existingChapter) {
+          return Object.assign({}, existingChapter, savedChapter);
+        }
+        return savedChapter;
+      });
+    }
+    if (saveData.settings) {
+      deviceData.settings = JSON.parse(JSON.stringify(saveData.settings));
+    }
     
     saveGameData(deviceId);
-    console.log(`[备份] 设备 ${deviceId} 已从备份恢复:`, filename);
+    console.log(`[备份] 设备 ${deviceId} 已从备份恢复（包含章节数据）:`, filename);
     
     return { success: true, saveData };
   } catch (error) {
@@ -2086,6 +2147,75 @@ function upgradeAttribute(user, attributeType) {
   };
 }
 
+function calculateResetInfo(user) {
+  const attributeTypes = ['hp', 'attack', 'defense', 'speed'];
+  let totalSpent = 0;
+  
+  attributeTypes.forEach(attrType => {
+    const currentLevel = user.attributeLevels[attrType];
+    if (currentLevel > 1) {
+      for (let level = 1; level < currentLevel; level++) {
+        totalSpent += getAttributeCost(attrType, level);
+      }
+    }
+  });
+  
+  const refund = Math.floor(totalSpent * 0.5);
+  const resetCost = 100;
+  
+  return {
+    totalSpent,
+    refund,
+    resetCost,
+    hasUpgrades: Object.values(user.attributeLevels).some(level => level > 1)
+  };
+}
+
+function resetAttributes(user) {
+  const resetInfo = calculateResetInfo(user);
+  
+  if (!resetInfo.hasUpgrades) {
+    return { success: false, message: '当前没有任何属性升级，无需重置' };
+  }
+  
+  if (user.coins < resetInfo.resetCost) {
+    return { success: false, message: '金币不足，无法重置属性' };
+  }
+  
+  user.coins -= resetInfo.resetCost;
+  user.coins += resetInfo.refund;
+  
+  user.attributeLevels = {
+    hp: 1,
+    attack: 1,
+    defense: 1,
+    speed: 1
+  };
+  
+  const newAttributes = calculateBaseAttributes(user);
+  user.maxHp = newAttributes.maxHp;
+  user.attack = newAttributes.attack;
+  user.defense = newAttributes.defense;
+  user.speed = newAttributes.speed;
+  user.hp = user.maxHp;
+  
+  return {
+    success: true,
+    data: {
+      resetCost: resetInfo.resetCost,
+      refund: resetInfo.refund,
+      totalSpent: resetInfo.totalSpent,
+      remainingCoins: user.coins,
+      newAttributes: {
+        maxHp: user.maxHp,
+        attack: user.attack,
+        defense: user.defense,
+        speed: user.speed
+      }
+    }
+  };
+}
+
 function checkLevelUp(user) {
   let leveledUp = false;
   while (user.experience >= user.nextLevelExp) {
@@ -2208,6 +2338,7 @@ app.get('/api/user', (req, res) => {
 app.get('/api/hero', (req, res) => {
   const currentData = getCurrentSaveData(req.deviceId);
   const user = currentData.user;
+  const resetInfo = calculateResetInfo(user);
   const heroInfo = {
     nickname: user.nickname,
     level: user.level,
@@ -2232,6 +2363,7 @@ app.get('/api/hero', (req, res) => {
       defense: getDefenseByAttributeLevel(user.attributeLevels.defense + 1) - user.defense,
       speed: getSpeedByAttributeLevel(user.attributeLevels.speed + 1) - user.speed
     },
+    resetInfo: resetInfo,
     maxLevel: 50
   };
   res.json({ success: true, data: heroInfo });
@@ -2261,6 +2393,37 @@ app.post('/api/hero/upgrade', (req, res) => {
       defense: user.attributeLevels.defense < 50 ? getDefenseByAttributeLevel(user.attributeLevels.defense + 1) - user.defense : 0,
       speed: user.attributeLevels.speed < 50 ? getSpeedByAttributeLevel(user.attributeLevels.speed + 1) - user.speed : 0
     }
+  };
+  
+  saveGameData(req.deviceId);
+  res.json({ success: true, data: updatedInfo });
+});
+
+app.post('/api/hero/reset', (req, res) => {
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
+  const result = resetAttributes(user);
+  
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+  
+  const updatedInfo = {
+    ...result.data,
+    attributeLevels: user.attributeLevels,
+    nextUpgradeCosts: {
+      hp: getAttributeCost('hp', user.attributeLevels.hp),
+      attack: getAttributeCost('attack', user.attributeLevels.attack),
+      defense: getAttributeCost('defense', user.attributeLevels.defense),
+      speed: getAttributeCost('speed', user.attributeLevels.speed)
+    },
+    nextLevelBonuses: {
+      hp: getHpByAttributeLevel(user.attributeLevels.hp + 1) - user.maxHp,
+      attack: getAttackByAttributeLevel(user.attributeLevels.attack + 1) - user.attack,
+      defense: getDefenseByAttributeLevel(user.attributeLevels.defense + 1) - user.defense,
+      speed: getSpeedByAttributeLevel(user.attributeLevels.speed + 1) - user.speed
+    },
+    resetInfo: calculateResetInfo(user)
   };
   
   saveGameData(req.deviceId);
@@ -3907,6 +4070,114 @@ app.delete('/api/backups/:filename', (req, res) => {
   }
   const result = deleteBackup(filename, req.deviceId);
   res.json(result);
+});
+
+app.post('/api/save/reload', (req, res) => {
+  const deviceId = req.deviceId;
+  if (!deviceId) {
+    return res.status(400).json({ success: false, error: '缺少设备标识' });
+  }
+  
+  const success = reloadDeviceData(deviceId);
+  const currentData = getCurrentSaveData(deviceId);
+  
+  res.json({
+    success,
+    data: {
+      user: currentData.user,
+      reloadedAt: new Date().toISOString()
+    }
+  });
+});
+
+app.post('/api/save/clear-cache', (req, res) => {
+  const deviceId = req.deviceId;
+  if (!deviceId) {
+    return res.status(400).json({ success: false, error: '缺少设备标识' });
+  }
+  
+  const success = clearDeviceCache(deviceId);
+  
+  res.json({
+    success,
+    data: {
+      clearedAt: new Date().toISOString()
+    }
+  });
+});
+
+app.post('/api/account/switch', (req, res) => {
+  const { newDeviceId } = req.body;
+  
+  if (!newDeviceId) {
+    return res.status(400).json({ success: false, error: '缺少新的设备标识' });
+  }
+  
+  const oldDeviceId = req.deviceId;
+  
+  if (oldDeviceId && oldDeviceId !== newDeviceId) {
+    clearDeviceCache(oldDeviceId);
+  }
+  
+  initDeviceData(newDeviceId, true);
+  const currentData = getCurrentSaveData(newDeviceId);
+  
+  console.log(`[账号] 已切换到设备: ${newDeviceId}`);
+  
+  res.json({
+    success: true,
+    data: {
+      deviceId: newDeviceId,
+      user: currentData.user,
+      switchedAt: new Date().toISOString()
+    }
+  });
+});
+
+app.post('/api/account/reset', (req, res) => {
+  const deviceId = req.deviceId;
+  if (!deviceId) {
+    return res.status(400).json({ success: false, error: '缺少设备标识' });
+  }
+  
+  clearDeviceCache(deviceId);
+  
+  const defaultLevels = [];
+  Object.keys(LEVEL_MAPS).forEach(levelId => {
+    const id = parseInt(levelId);
+    const map = LEVEL_MAPS[id];
+    const chapter = CHAPTERS.find(c => c.levels.includes(id));
+    defaultLevels.push({
+      id: id,
+      chapterId: chapter ? chapter.id : 1,
+      name: map.name,
+      stars: 0,
+      isCompleted: false,
+      isUnlocked: id === 1,
+      bestTime: null
+    });
+  });
+  
+  const deviceData = {
+    user: JSON.parse(JSON.stringify(mockData.user)),
+    levels: defaultLevels,
+    chapters: JSON.parse(JSON.stringify(CHAPTERS)),
+    settings: JSON.parse(JSON.stringify(mockData.settings))
+  };
+  
+  allDeviceData.set(deviceId, deviceData);
+  saveGameData(deviceId);
+  
+  console.log(`[账号] 已重置设备 ${deviceId} 的游戏数据`);
+  
+  res.json({
+    success: true,
+    data: {
+      deviceId,
+      user: deviceData.user,
+      resetAt: new Date().toISOString()
+    }
+  });
 });
 
 app.get('/api/health', (req, res) => {

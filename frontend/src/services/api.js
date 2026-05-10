@@ -48,6 +48,7 @@ export const userAPI = {
 export const heroAPI = {
   getHeroInfo: () => api.get('/hero'),
   upgradeAttribute: (attributeType) => api.post('/hero/upgrade', { attributeType }),
+  resetAttributes: () => api.post('/hero/reset'),
 };
 
 export const inventoryAPI = {
@@ -121,6 +122,8 @@ export const saveAPI = {
   save: () => api.post('/save'),
   getStatus: () => api.get('/save/status'),
   checkIntegrity: () => api.get('/save/integrity'),
+  reload: () => api.post('/save/reload'),
+  clearCache: () => api.post('/save/clear-cache'),
 };
 
 export const backupAPI = {
@@ -128,6 +131,11 @@ export const backupAPI = {
   create: (name) => api.post('/backups/create', { name }),
   restore: (filename) => api.post('/backups/restore', { filename }),
   delete: (filename) => api.delete(`/backups/${encodeURIComponent(filename)}`),
+};
+
+export const accountAPI = {
+  switchAccount: (newDeviceId) => api.post('/account/switch', { newDeviceId }),
+  resetAccount: () => api.post('/account/reset'),
 };
 
 export default api;

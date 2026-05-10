@@ -66,4 +66,11 @@ export const healthAPI = {
   check: () => api.get('/health'),
 };
 
+export const skinAPI = {
+  getSkins: () => api.get('/skins'),
+  buySkin: (skinId) => api.post('/skins/buy', { skinId }),
+  wearSkin: (skinId) => api.post('/skins/wear', { skinId }),
+  getCurrentSkin: () => api.get('/skins/current'),
+};
+
 export default api;

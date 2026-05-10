@@ -8,6 +8,7 @@ import GamePlay from './pages/GamePlay'
 import Hero from './pages/Hero'
 import Inventory from './pages/Inventory'
 import SignIn from './pages/SignIn'
+import SkinShop from './pages/SkinShop'
 import { GameProvider } from './context/GameContext'
 import './styles/App.css'
 
@@ -28,6 +29,9 @@ function Navbar() {
           </Link>
           <Link to="/signin" className={`nav-link ${isActive('/signin') ? 'active' : ''}`}>
             📅 每日签到
+          </Link>
+          <Link to="/skinshop" className={`nav-link ${isActive('/skinshop') ? 'active' : ''}`}>
+            🎨 皮肤商店
           </Link>
           <Link to="/hero" className={`nav-link ${isActive('/hero') ? 'active' : ''}`}>
             🦸 角色养成

@@ -1,7 +1,9 @@
 import { TILE_SIZE, TILE_TYPES } from '../hooks/useGame';
 import '../styles/GameMap.css';
 
-function GameMap({ mapData, playerPos, damageFlash, monsters }) {
+const DEFAULT_SKIN_ICON = '🧙';
+
+function GameMap({ mapData, playerPos, damageFlash, monsters, skinIcon = DEFAULT_SKIN_ICON }) {
   if (!mapData) return null;
 
   const renderTile = (tileType, x, y) => {
@@ -81,7 +83,7 @@ function GameMap({ mapData, playerPos, damageFlash, monsters }) {
               top: playerPos.y * TILE_SIZE
             }}
           >
-            <span className="player-icon">🧙</span>
+            <span className="player-icon">{skinIcon}</span>
           </div>
         )}
       </div>

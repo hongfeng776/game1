@@ -25,10 +25,12 @@ function GamePlay() {
   const [showInventory, setShowInventory] = useState(false);
   const [notification, setNotification] = useState(null);
   const [itemEffects, setItemEffects] = useState([]);
+  const [lockedDifficulty, setLockedDifficulty] = useState(null);
   const { user, updateUser } = useGameContext();
   const gameEndedRef = useRef(false);
   const pendingItemRequestsRef = useRef(new Set());
   const effectIdCounter = useRef(0);
+  const gameStartedRef = useRef(false);
 
   const game = useGame(mapData, user);
 
@@ -37,16 +39,21 @@ function GamePlay() {
     return urlParams.get('difficulty') || 'normal';
   }, []);
 
+  const urlDifficulty = getDifficulty();
+
   useEffect(() => {
-    gameEndedRef.current = false;
-    loadGame();
-    loadInventory();
+    if (!gameStartedRef.current) {
+      gameEndedRef.current = false;
+      setLockedDifficulty(urlDifficulty);
+      loadGame();
+      loadInventory();
+    }
   }, [levelId]);
 
-  const loadGame = useCallback(async () => {
+  const loadGame = useCallback(async (difficulty) => {
     try {
-      const difficulty = getDifficulty();
-      const mapRes = await levelsAPI.getLevelMap(levelId, difficulty);
+      const diff = difficulty || getDifficulty();
+      const mapRes = await levelsAPI.getLevelMap(levelId, diff);
       if (mapRes.success) setMapData(mapRes.data);
     } catch (error) {
       console.error('加载游戏失败:', error);
@@ -96,7 +103,7 @@ function GamePlay() {
   const handleGameEnd = async () => {
     try {
       if (game.isWin) {
-        const difficulty = getDifficulty();
+        const difficulty = lockedDifficulty || getDifficulty();
         const result = await levelsAPI.completeLevel(parseInt(levelId), game.timeUsed, difficulty);
         if (result.success) {
           setResultData(result.data);
@@ -213,6 +220,12 @@ function GamePlay() {
     ));
   };
 
+  useEffect(() => {
+    if (game.isPlaying && !gameStartedRef.current) {
+      gameStartedRef.current = true;
+    }
+  }, [game.isPlaying]);
+
   const handleRetry = () => {
     gameEndedRef.current = false;
     setShowResult(false);
@@ -222,6 +235,8 @@ function GamePlay() {
   };
 
   const handleBackToLevels = () => {
+    gameStartedRef.current = false;
+    setLockedDifficulty(null);
     navigate('/levels');
   };
 

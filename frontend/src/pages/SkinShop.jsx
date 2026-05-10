@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { skinAPI } from '../services/api';
 import { useGameContext } from '../context/GameContext';
 import '../styles/SkinShop.css';
@@ -17,6 +17,8 @@ function SkinShop() {
   const [activeTab, setActiveTab] = useState('common');
   const [buying, setBuying] = useState(false);
   const [wearing, setWearing] = useState(false);
+  
+  const navigationRef = useRef({ lastTime: 0, isAnimating: false });
 
   const loadSkins = useCallback(async () => {
     try {
@@ -35,6 +37,10 @@ function SkinShop() {
   useEffect(() => {
     loadSkins();
   }, [loadSkins]);
+
+  useEffect(() => {
+    setSelectedSkin(null);
+  }, [activeTab]);
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -99,22 +105,44 @@ function SkinShop() {
 
   const currentTabSkins = skinsData ? (activeTab === 'common' ? skinsData.commonSkins : skinsData.rareSkins) : [];
 
-  const navigateSkin = (direction) => {
-    if (!selectedSkin || currentTabSkins.length === 0) return;
-    const currentIndex = currentTabSkins.findIndex(skin => skin.id === selectedSkin.id);
+  const navigateSkin = useCallback((direction) => {
+    const now = Date.now();
+    if (now - navigationRef.current.lastTime < 200) return;
+    if (navigationRef.current.isAnimating) return;
     
-    if (currentIndex === -1) {
-      setSelectedSkin(currentTabSkins[0]);
+    navigationRef.current.lastTime = now;
+    navigationRef.current.isAnimating = true;
+
+    if (!selectedSkin || currentTabSkins.length === 0) {
+      navigationRef.current.isAnimating = false;
       return;
     }
+
+    const currentIndex = currentTabSkins.findIndex(skin => skin.id === selectedSkin.id);
     
-    let newIndex = currentIndex + direction;
-    if (newIndex < 0) {
-      newIndex = currentTabSkins.length - 1;
-    } else if (newIndex >= currentTabSkins.length) {
-      newIndex = 0;
+    let targetSkin;
+    if (currentIndex === -1) {
+      targetSkin = currentTabSkins[0];
+    } else {
+      let newIndex = currentIndex + direction;
+      if (newIndex < 0) {
+        newIndex = currentTabSkins.length - 1;
+      } else if (newIndex >= currentTabSkins.length) {
+        newIndex = 0;
+      }
+      targetSkin = currentTabSkins[newIndex];
     }
-    setSelectedSkin(currentTabSkins[newIndex]);
+
+    setSelectedSkin(targetSkin);
+    
+    setTimeout(() => {
+      navigationRef.current.isAnimating = false;
+    }, 150);
+  }, [selectedSkin, currentTabSkins]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSelectedSkin(null);
   };
 
   if (loading || !skinsData) {
@@ -159,13 +187,13 @@ function SkinShop() {
           <div className="tabs-container">
             <button 
               className={`tab-btn ${activeTab === 'common' ? 'active' : ''}`}
-              onClick={() => setActiveTab('common')}
+              onClick={() => handleTabChange('common')}
             >
               💰 普通皮肤
             </button>
             <button 
               className={`tab-btn ${activeTab === 'rare' ? 'active' : ''}`}
-              onClick={() => setActiveTab('rare')}
+              onClick={() => handleTabChange('rare')}
             >
               🌟 稀有皮肤
             </button>
@@ -251,6 +279,10 @@ function SkinShop() {
                   </div>
                 )}
 
+                {skin.type === 'common' && skin.unlocked && (
+                  <div className="owned-badge">✓ 已拥有</div>
+                )}
+
                 {skin.type === 'rare' && !skin.unlocked && skin.unlockProgress && (
                   <div className="unlock-progress">
                     <div className="progress-bar">
@@ -280,11 +312,12 @@ function SkinShop() {
             <div className="skin-detail-card card" onClick={e => e.stopPropagation()}>
               <div className="detail-header">
                 <button 
-                  className="nav-btn nav-btn-left"
+                  className={`nav-btn nav-btn-left ${navigationRef.current.isAnimating ? 'disabled' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     navigateSkin(-1);
                   }}
+                  disabled={navigationRef.current.isAnimating}
                 >
                   ◀
                 </button>
@@ -305,11 +338,12 @@ function SkinShop() {
                 </div>
                 
                 <button 
-                  className="nav-btn nav-btn-right"
+                  className={`nav-btn nav-btn-right ${navigationRef.current.isAnimating ? 'disabled' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     navigateSkin(1);
                   }}
+                  disabled={navigationRef.current.isAnimating}
                 >
                   ▶
                 </button>
@@ -322,7 +356,9 @@ function SkinShop() {
                     className={`indicator ${selectedSkin.id === skin.id ? 'active' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedSkin(skin);
+                      if (!navigationRef.current.isAnimating) {
+                        setSelectedSkin(skin);
+                      }
                     }}
                   ></span>
                 ))}

@@ -83,7 +83,7 @@ export function useGame(mapData, user) {
     if (mapData) {
       resetGame();
     }
-  }, [mapData, baseMaxHp]);
+  }, [mapData, baseMaxHp, resetGame]);
 
   useEffect(() => {
     if (playerPos) {
@@ -199,6 +199,7 @@ export function useGame(mapData, user) {
     clearMonsterTimers();
     
     monstersRef.current.forEach((monster, index) => {
+      const interval = monstersRef.current[index]?.moveInterval || monster.moveInterval || 1500;
       const timer = setInterval(() => {
         if (gameEndedRef.current || isPaused) return;
         
@@ -213,7 +214,7 @@ export function useGame(mapData, user) {
           }
           return newMonsters;
         });
-      }, monster.moveInterval || 1500);
+      }, interval);
       
       monsterTimersRef.current.push(timer);
     });

@@ -955,6 +955,30 @@
   color: white;
 }
 
+.egg-rewards .drop-item-failed {
+  background: rgba(255, 100, 100, 0.3);
+  border-color: rgba(255, 100, 100, 0.5);
+  color: #ffcccc;
+  text-decoration: line-through;
+}
+
+.egg-rewards .failed-section {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+.egg-rewards .failed-section .drops-title {
+  color: #ffaaaa;
+}
+
+.egg-rewards .failed-hint {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+}
+
 @media (max-width: 1024px) {
   .game-container {
     flex-direction: column;

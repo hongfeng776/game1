@@ -621,14 +621,12 @@ function GamePlay() {
             <div className="egg-description">{eggRewardData.egg?.description}</div>
             
             <div className="result-rewards egg-rewards">
-              {eggRewardData.reward?.coins > 0 && (
-                <div className="reward-item">
-                  <span className="reward-icon">💰</span>
-                  <span>+{eggRewardData.reward.coins} 金币</span>
-                </div>
-              )}
+              <div className="reward-item">
+                <span className="reward-icon">💰</span>
+                <span>+{eggRewardData.reward?.coins || 0} 金币</span>
+              </div>
               
-              {eggRewardData.reward?.items && eggRewardData.reward.items.length > 0 && (
+              {eggRewardData.reward?.items && eggRewardData.reward.items.length > 0 ? (
                 <div className="drops-section">
                   <div className="drops-title">🎁 获得道具:</div>
                   <div className="drops-list">
@@ -638,6 +636,20 @@ function GamePlay() {
                       </span>
                     ))}
                   </div>
+                </div>
+              ) : null}
+              
+              {eggRewardData.reward?.failedItems && eggRewardData.reward.failedItems.length > 0 && (
+                <div className="drops-section failed-section">
+                  <div className="drops-title">⚠️ 领取失败:</div>
+                  <div className="drops-list">
+                    {eggRewardData.reward.failedItems.map((item, idx) => (
+                      <span key={idx} className="drop-item drop-item-failed">
+                        {item.item?.icon} {item.item?.name} ×{item.quantity}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="failed-hint">（背包已满或其他原因）</div>
                 </div>
               )}
             </div>

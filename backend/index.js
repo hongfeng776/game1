@@ -2392,7 +2392,8 @@ app.post('/api/hero/upgrade', (req, res) => {
       attack: user.attributeLevels.attack < 50 ? getAttackByAttributeLevel(user.attributeLevels.attack + 1) - user.attack : 0,
       defense: user.attributeLevels.defense < 50 ? getDefenseByAttributeLevel(user.attributeLevels.defense + 1) - user.defense : 0,
       speed: user.attributeLevels.speed < 50 ? getSpeedByAttributeLevel(user.attributeLevels.speed + 1) - user.speed : 0
-    }
+    },
+    resetInfo: calculateResetInfo(user)
   };
   
   saveGameData(req.deviceId);

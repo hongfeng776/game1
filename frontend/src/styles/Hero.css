@@ -420,6 +420,11 @@
   margin-bottom: 12px;
   text-align: center;
   font-weight: 500;
+  width: 100%;
+  word-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.4;
+  box-sizing: border-box;
 }
 
 .preview-text.affordable {

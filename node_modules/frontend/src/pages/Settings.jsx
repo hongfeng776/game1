@@ -25,7 +25,13 @@ function formatSize(bytes) {
 }
 
 function Settings() {
-  const { updateUser, refreshUser } = useGameContext()
+  const { 
+    updateUser, 
+    refreshUser, 
+    switchAccount, 
+    resetAccount, 
+    handleRestoreBackup: restoreFromContext 
+  } = useGameContext()
   const [settings, setSettings] = useState({
     musicVolume: 80,
     sfxVolume: 70,
@@ -109,21 +115,48 @@ function Settings() {
       return
     }
     try {
-      const res = await backupAPI.restore(filename)
-      if (res.success) {
+      showMessage('success', '正在恢复备份，请稍候...')
+      
+      const success = await restoreFromContext(filename)
+      
+      if (success) {
         showMessage('success', '备份恢复成功！')
-        const userRes = await userAPI.getUser()
-        if (userRes.success) {
-          console.log('用户数据已更新:', userRes.data)
-          updateUser(userRes.data)
-          await refreshUser()
-        }
+        loadBackups()
       } else {
-        showMessage('error', res.error || '恢复备份失败')
+        showMessage('error', '恢复备份失败')
       }
     } catch (error) {
       console.error('恢复备份失败:', error)
       showMessage('error', '恢复备份失败')
+    }
+  }
+
+  const handleSwitchAccount = async () => {
+    if (!window.confirm('确定要切换到新账号吗？当前账号的进度已保存在设备中，以后可以通过相同的设备标识恢复。')) {
+      return
+    }
+    try {
+      showMessage('success', '正在切换账号...')
+      const success = await switchAccount()
+      
+      if (success) {
+        showMessage('success', '已切换到新账号！')
+        loadBackups()
+      } else {
+        showMessage('error', '切换账号失败')
+      }
+    } catch (error) {
+      console.error('切换账号失败:', error)
+      showMessage('error', '切换账号失败')
+    }
+  }
+
+  const handleResetAccount = async () => {
+    const success = await resetAccount()
+    
+    if (success) {
+      showMessage('success', '账号已重置！')
+      loadBackups()
     }
   }
 
@@ -244,6 +277,31 @@ function Settings() {
               />
               <span className="toggle-slider"></span>
             </label>
+          </div>
+        </div>
+
+        <div className="settings-card card">
+          <h2 className="section-header">👤 账号管理</h2>
+          
+          <p className="backup-description">
+            注意：当前系统使用设备标识来区分不同账号。切换账号后，当前进度会被保存在此设备中，以后可以通过相同的设备标识恢复。
+          </p>
+          
+          <div className="action-buttons">
+            <button 
+              className="btn btn-outline"
+              onClick={handleSwitchAccount}
+              title="创建一个新的账号，当前进度会被保存"
+            >
+              🔄 切换账号
+            </button>
+            <button 
+              className="btn btn-danger"
+              onClick={handleResetAccount}
+              title="重置当前账号的所有游戏进度"
+            >
+              🔄 重置账号
+            </button>
           </div>
         </div>
 

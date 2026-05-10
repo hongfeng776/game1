@@ -9,25 +9,22 @@ const attributeConfig = {
     name: '生命值',
     icon: '❤️',
     color: '#FF6B6B',
-    description: '增加角色最大生命值，让你在陷阱面前更耐抗'
+    description: '增加角色最大生命值，让你在陷阱面前更耐抗',
+    apiKey: 'maxHp'
   },
   attack: {
     name: '攻击力',
     icon: '⚔️',
     color: '#FF8C42',
-    description: '增加角色攻击力，打怪更轻松'
+    description: '增加角色攻击力，打怪更轻松',
+    apiKey: 'attack'
   },
   defense: {
     name: '防御力',
     icon: '🛡️',
     color: '#4ECDC4',
-    description: '增加角色防御力，减少受到的伤害'
-  },
-  speed: {
-    name: '移动速度',
-    icon: '👟',
-    color: '#A78BFA',
-    description: '增加角色移动速度，躲避陷阱更灵活'
+    description: '增加角色防御力，减少受到的伤害',
+    apiKey: 'defense'
   }
 };
 
@@ -36,6 +33,8 @@ function Hero() {
   const [heroInfo, setHeroInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(null);
+  const [resetting, setResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [notification, setNotification] = useState(null);
 
   const loadHeroInfo = useCallback(async () => {
@@ -77,13 +76,19 @@ function Hero() {
         setHeroInfo(prev => ({
           ...prev,
           coins: res.data.remainingCoins,
-          currentAttributes: res.data.newAttributes,
+          currentAttributes: {
+            maxHp: res.data.newAttributes.maxHp,
+            attack: res.data.newAttributes.attack,
+            defense: res.data.newAttributes.defense,
+            speed: res.data.newAttributes.speed
+          },
           attributeLevels: {
             ...prev.attributeLevels,
             [attributeType]: res.data.newLevel
           },
           nextUpgradeCosts: res.data.nextUpgradeCosts,
-          nextLevelBonuses: res.data.nextLevelBonuses
+          nextLevelBonuses: res.data.nextLevelBonuses,
+          resetInfo: res.data.resetInfo || prev.resetInfo
         }));
         await refreshUser();
         const attrName = attributeConfig[attributeType].name;
@@ -93,6 +98,43 @@ function Hero() {
       showNotification(error.response?.data?.message || '升级失败', 'error');
     } finally {
       setUpgrading(null);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!heroInfo) return;
+    
+    if (heroInfo.coins < heroInfo.resetInfo?.resetCost) {
+      showNotification('金币不足，无法重置！', 'error');
+      return;
+    }
+
+    try {
+      setResetting(true);
+      const res = await heroAPI.resetAttributes();
+      if (res.success) {
+        setHeroInfo(prev => ({
+          ...prev,
+          coins: res.data.remainingCoins,
+          currentAttributes: {
+            maxHp: res.data.newAttributes.maxHp,
+            attack: res.data.newAttributes.attack,
+            defense: res.data.newAttributes.defense,
+            speed: res.data.newAttributes.speed
+          },
+          attributeLevels: res.data.attributeLevels,
+          nextUpgradeCosts: res.data.nextUpgradeCosts,
+          nextLevelBonuses: res.data.nextLevelBonuses,
+          resetInfo: res.data.resetInfo
+        }));
+        await refreshUser();
+        setShowResetConfirm(false);
+        showNotification(`重置成功！返还 ${res.data.refund} 金币`, 'success');
+      }
+    } catch (error) {
+      showNotification(error.response?.data?.message || '重置失败', 'error');
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -107,6 +149,14 @@ function Hero() {
     return Math.floor(value);
   };
 
+  const getPreviewText = (attrType, nextBonus, nextCost, canAfford) => {
+    const config = attributeConfig[attrType];
+    if (!canAfford) {
+      return `金币不足，需要 ${nextCost} 金币`;
+    }
+    return `花费 ${nextCost} 金币，${config.name}将提升 +${formatValue(nextBonus, attrType)}`;
+  };
+
   if (loading || !heroInfo) {
     return (
       <div className="hero-page">
@@ -119,6 +169,9 @@ function Hero() {
       </div>
     );
   }
+
+  const hasUpgrades = heroInfo.resetInfo?.hasUpgrades;
+  const canReset = heroInfo.coins >= (heroInfo.resetInfo?.resetCost || 0);
 
   return (
     <div className="hero-page">
@@ -153,6 +206,29 @@ function Hero() {
           </div>
         </div>
 
+        {hasUpgrades && (
+          <div className="reset-section card">
+            <div className="reset-info">
+              <div className="reset-icon">🔄</div>
+              <div className="reset-text">
+                <h3>属性重置</h3>
+                <p>
+                  已花费 <strong>{heroInfo.resetInfo.totalSpent}</strong> 金币升级属性，
+                  重置后将返还 <strong className="text-success">{heroInfo.resetInfo.refund}</strong> 金币
+                  （50%返还）
+                </p>
+              </div>
+            </div>
+            <button
+              className={`reset-btn ${canReset ? '' : 'disabled'}`}
+              onClick={() => canReset && setShowResetConfirm(true)}
+              disabled={!canReset}
+            >
+              💰 {heroInfo.resetInfo.resetCost} 重置
+            </button>
+          </div>
+        )}
+
         <div className="attributes-section">
           <h2 className="section-title">📈 属性加点</h2>
           <p className="section-subtitle">花费金币升级属性，等级越高加成越多</p>
@@ -161,7 +237,7 @@ function Hero() {
             {Object.keys(attributeConfig).map((attrType) => {
               const config = attributeConfig[attrType];
               const currentLevel = heroInfo.attributeLevels[attrType];
-              const currentValue = heroInfo.currentAttributes[attrType];
+              const currentValue = heroInfo.currentAttributes[config.apiKey];
               const nextCost = heroInfo.nextUpgradeCosts[attrType];
               const nextBonus = heroInfo.nextLevelBonuses[attrType];
               const isMaxed = currentLevel >= heroInfo.maxLevel;
@@ -212,22 +288,27 @@ function Hero() {
                   <p className="attribute-desc">{config.description}</p>
 
                   {!isMaxed ? (
-                    <button
-                      className={`upgrade-btn ${canAfford ? 'affordable' : 'not-affordable'}`}
-                      onClick={() => handleUpgrade(attrType)}
-                      disabled={!canAfford || upgrading === attrType}
-                    >
-                      {upgrading === attrType ? (
-                        <span className="upgrading">
-                          <span className="spin">⚙️</span> 升级中...
-                        </span>
-                      ) : (
-                        <>
-                          <span className="cost">💰 {nextCost}</span>
-                          <span className="action">升级</span>
-                        </>
-                      )}
-                    </button>
+                    <>
+                      <div className={`preview-text ${canAfford ? 'affordable' : 'not-affordable'}`}>
+                        {getPreviewText(attrType, nextBonus, nextCost, canAfford)}
+                      </div>
+                      <button
+                        className={`upgrade-btn ${canAfford ? 'affordable' : 'not-affordable'}`}
+                        onClick={() => handleUpgrade(attrType)}
+                        disabled={!canAfford || upgrading === attrType}
+                      >
+                        {upgrading === attrType ? (
+                          <span className="upgrading">
+                            <span className="spin">⚙️</span> 升级中...
+                          </span>
+                        ) : (
+                          <>
+                            <span className="cost">💰 {nextCost}</span>
+                            <span className="action">升级</span>
+                          </>
+                        )}
+                      </button>
+                    </>
                   ) : (
                     <div className="maxed-badge">
                       🏆 已满级
@@ -251,15 +332,64 @@ function Hero() {
               <span className="tip-text"><strong>防御力：</strong>与生命值配合，高防御可以大幅减少陷阱伤害</span>
             </div>
             <div className="tip-item">
-              <span className="tip-icon">👟</span>
-              <span className="tip-text"><strong>移动速度：</strong>高手向升级，更快的速度有助于躲避陷阱</span>
-            </div>
-            <div className="tip-item">
               <span className="tip-icon">⚔️</span>
               <span className="tip-text"><strong>攻击力：</strong>后期必备，高攻击让你在战斗关卡如虎添翼</span>
             </div>
+            <div className="tip-item">
+              <span className="tip-icon">🔄</span>
+              <span className="tip-text"><strong>属性重置：</strong>花费少量金币可重置所有属性，返还50%已消耗金币</span>
+            </div>
           </div>
         </div>
+
+        {showResetConfirm && (
+          <div className="modal-overlay" onClick={() => setShowResetConfirm(false)}>
+            <div className="modal-content card" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <span className="modal-icon">🔄</span>
+                <h2>确认重置属性</h2>
+              </div>
+              <div className="modal-body">
+                <div className="reset-details">
+                  <div className="reset-detail-item">
+                    <span className="detail-label">重置费用：</span>
+                    <span className="detail-value">💰 {heroInfo.resetInfo.resetCost}</span>
+                  </div>
+                  <div className="reset-detail-item">
+                    <span className="detail-label">已花费金币：</span>
+                    <span className="detail-value">💰 {heroInfo.resetInfo.totalSpent}</span>
+                  </div>
+                  <div className="reset-detail-item refund">
+                    <span className="detail-label">返还金币（50%）：</span>
+                    <span className="detail-value">💰 +{heroInfo.resetInfo.refund}</span>
+                  </div>
+                </div>
+                <p className="reset-warning">
+                  ⚠️ 所有属性等级将回到初始值（Lv.1），此操作无法撤销！
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  className="btn btn-secondary"
+                  onClick={() => setShowResetConfirm(false)}
+                >
+                  取消
+                </button>
+                <button 
+                  className="btn btn-danger"
+                  onClick={handleReset}
+                  disabled={resetting}
+                >
+                  {resetting ? (
+                    <><span className="spin">⚙️</span> 重置中...</>
+                  ) : (
+                    '确认重置'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

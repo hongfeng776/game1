@@ -207,6 +207,108 @@
   justify-content: flex-end;
 }
 
+.level-modal {
+  max-width: 500px;
+}
+
+.inventory-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.inventory-title {
+  font-size: 1rem;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.usable-items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.usable-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  border-radius: 10px;
+  background: #f8f9fa;
+  border: 2px solid #ddd;
+  transition: all 0.2s ease;
+}
+
+.usable-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.usable-item .item-icon {
+  font-size: 1.8rem;
+  margin-bottom: 5px;
+}
+
+.usable-item .item-name {
+  font-size: 0.8rem;
+  color: #333;
+  text-align: center;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.usable-item .item-count {
+  font-size: 0.75rem;
+  color: #667eea;
+  font-weight: bold;
+}
+
+.usable-item.rarity-common {
+  border-color: #9E9E9E;
+  background: #FAFAFA;
+}
+
+.usable-item.rarity-uncommon {
+  border-color: #4CAF50;
+  background: #F1F8E9;
+}
+
+.usable-item.rarity-rare {
+  border-color: #2196F3;
+  background: #E3F2FD;
+}
+
+.usable-item.rarity-epic {
+  border-color: #9C27B0;
+  background: #F3E5F5;
+}
+
+.usable-item.rarity-legendary {
+  border-color: #FF9800;
+  background: #FFF3E0;
+}
+
+.empty-inventory-hint {
+  text-align: center;
+  padding: 20px;
+  color: #999;
+}
+
+.empty-inventory-hint p {
+  margin: 5px 0;
+}
+
+.empty-inventory-hint .hint-text {
+  font-size: 0.85rem;
+  color: #aaa;
+}
+
 @media (max-width: 768px) {
   .levels-grid {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));

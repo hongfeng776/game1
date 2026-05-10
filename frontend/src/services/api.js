@@ -26,6 +26,13 @@ export const heroAPI = {
   upgradeAttribute: (attributeType) => api.post('/hero/upgrade', { attributeType }),
 };
 
+export const inventoryAPI = {
+  getInventory: () => api.get('/inventory'),
+  getAllItems: () => api.get('/items'),
+  addItem: (itemId, quantity) => api.post('/inventory/add', { itemId, quantity }),
+  useItem: (itemId, quantity) => api.post('/inventory/use', { itemId, quantity }),
+};
+
 export const levelsAPI = {
   getLevels: (chapterId) => api.get('/levels', { params: { chapterId } }),
   getLevelMap: (levelId) => api.get(`/level/map/${levelId}`),

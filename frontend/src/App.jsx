@@ -6,6 +6,7 @@ import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import GamePlay from './pages/GamePlay'
 import Hero from './pages/Hero'
+import Inventory from './pages/Inventory'
 import { GameProvider } from './context/GameContext'
 import './styles/App.css'
 
@@ -26,6 +27,9 @@ function Navbar() {
           </Link>
           <Link to="/hero" className={`nav-link ${isActive('/hero') ? 'active' : ''}`}>
             🦸 角色养成
+          </Link>
+          <Link to="/inventory" className={`nav-link ${isActive('/inventory') ? 'active' : ''}`}>
+            🎒 背包
           </Link>
           <Link to="/levels" className={`nav-link ${isActive('/levels') ? 'active' : ''}`}>
             🎯 关卡
@@ -59,6 +63,10 @@ function MobileNavbar() {
         🦸
         <span>养成</span>
       </Link>
+      <Link to="/inventory" className={`mobile-nav-link ${isActive('/inventory') ? 'active' : ''}`}>
+        🎒
+        <span>背包</span>
+      </Link>
       <Link to="/levels" className={`mobile-nav-link ${isActive('/levels') ? 'active' : ''}`}>
         🎯
         <span>关卡</span>
@@ -85,6 +93,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/hero" element={<Hero />} />
+              <Route path="/inventory" element={<Inventory />} />
               <Route path="/start" element={<Start />} />
               <Route path="/levels" element={<Levels />} />
               <Route path="/profile" element={<Profile />} />

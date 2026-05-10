@@ -5,6 +5,7 @@ import Levels from './pages/Levels'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
 import GamePlay from './pages/GamePlay'
+import Hero from './pages/Hero'
 import { GameProvider } from './context/GameContext'
 import './styles/App.css'
 
@@ -23,8 +24,8 @@ function Navbar() {
           <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
             🏠 首页
           </Link>
-          <Link to="/start" className={`nav-link ${isActive('/start') ? 'active' : ''}`}>
-            ▶️ 开始
+          <Link to="/hero" className={`nav-link ${isActive('/hero') ? 'active' : ''}`}>
+            🦸 角色养成
           </Link>
           <Link to="/levels" className={`nav-link ${isActive('/levels') ? 'active' : ''}`}>
             🎯 关卡
@@ -54,9 +55,9 @@ function MobileNavbar() {
         🏠
         <span>首页</span>
       </Link>
-      <Link to="/start" className={`mobile-nav-link ${isActive('/start') ? 'active' : ''}`}>
-        ▶️
-        <span>开始</span>
+      <Link to="/hero" className={`mobile-nav-link ${isActive('/hero') ? 'active' : ''}`}>
+        🦸
+        <span>养成</span>
       </Link>
       <Link to="/levels" className={`mobile-nav-link ${isActive('/levels') ? 'active' : ''}`}>
         🎯
@@ -83,6 +84,7 @@ function App() {
           <main className="main-content">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/hero" element={<Hero />} />
               <Route path="/start" element={<Start />} />
               <Route path="/levels" element={<Levels />} />
               <Route path="/profile" element={<Profile />} />

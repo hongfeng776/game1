@@ -311,7 +311,7 @@ const mockData = {
     level: 1,
     experience: 0,
     nextLevelExp: 100,
-    coins: 100,
+    coins: 500,
     diamonds: 10,
     totalStars: 0,
     completedLevels: 0,
@@ -320,7 +320,13 @@ const mockData = {
     attack: 10,
     defense: 5,
     speed: 1,
-    hp: 100
+    hp: 100,
+    attributeLevels: {
+      hp: 1,
+      attack: 1,
+      defense: 1,
+      speed: 1
+    }
   },
   levels: [],
   chapters: JSON.parse(JSON.stringify(CHAPTERS)),
@@ -368,16 +374,93 @@ function getSpeed(level) {
   return 1 + Math.floor((level - 1) / 5) * 0.1;
 }
 
+function getAttributeCost(attributeType, currentLevel) {
+  const baseCosts = {
+    hp: 50,
+    attack: 80,
+    defense: 70,
+    speed: 100
+  };
+  const baseCost = baseCosts[attributeType] || 50;
+  return Math.floor(baseCost * Math.pow(1.15, currentLevel - 1));
+}
+
+function getHpByAttributeLevel(level) {
+  return 100 + (level - 1) * 20 + Math.floor((level - 1) * (level - 1) * 2);
+}
+
+function getAttackByAttributeLevel(level) {
+  return 10 + (level - 1) * 5 + Math.floor((level - 1) * (level - 1) * 0.5);
+}
+
+function getDefenseByAttributeLevel(level) {
+  return 5 + (level - 1) * 3 + Math.floor((level - 1) * (level - 1) * 0.3);
+}
+
+function getSpeedByAttributeLevel(level) {
+  return 1 + (level - 1) * 0.05 + Math.floor((level - 1) / 5) * 0.1;
+}
+
+function calculateBaseAttributes(user) {
+  const { attributeLevels } = user;
+  return {
+    maxHp: getHpByAttributeLevel(attributeLevels.hp),
+    attack: getAttackByAttributeLevel(attributeLevels.attack),
+    defense: getDefenseByAttributeLevel(attributeLevels.defense),
+    speed: getSpeedByAttributeLevel(attributeLevels.speed)
+  };
+}
+
+function upgradeAttribute(user, attributeType) {
+  const validAttributes = ['hp', 'attack', 'defense', 'speed'];
+  if (!validAttributes.includes(attributeType)) {
+    return { success: false, message: '无效的属性类型' };
+  }
+
+  const currentLevel = user.attributeLevels[attributeType];
+  const maxLevel = 50;
+  if (currentLevel >= maxLevel) {
+    return { success: false, message: '属性已达最高等级' };
+  }
+
+  const cost = getAttributeCost(attributeType, currentLevel);
+  if (user.coins < cost) {
+    return { success: false, message: '金币不足' };
+  }
+
+  user.coins -= cost;
+  user.attributeLevels[attributeType] += 1;
+
+  const newAttributes = calculateBaseAttributes(user);
+  user.maxHp = newAttributes.maxHp;
+  user.attack = newAttributes.attack;
+  user.defense = newAttributes.defense;
+  user.speed = newAttributes.speed;
+  user.hp = user.maxHp;
+
+  return {
+    success: true,
+    data: {
+      attributeType,
+      newLevel: user.attributeLevels[attributeType],
+      cost,
+      remainingCoins: user.coins,
+      newAttributes: {
+        maxHp: user.maxHp,
+        attack: user.attack,
+        defense: user.defense,
+        speed: user.speed
+      }
+    }
+  };
+}
+
 function checkLevelUp(user) {
   let leveledUp = false;
   while (user.experience >= user.nextLevelExp) {
     user.experience -= user.nextLevelExp;
     user.level++;
     user.nextLevelExp = getLevelExpRequirement(user.level);
-    user.maxHp = getMaxHp(user.level);
-    user.attack = getAttack(user.level);
-    user.defense = getDefense(user.level);
-    user.speed = getSpeed(user.level);
     leveledUp = true;
   }
   return leveledUp;
@@ -399,6 +482,65 @@ function calculateStars(timeUsed, timeLimit, hpLeft, maxHp) {
 
 app.get('/api/user', (req, res) => {
   res.json({ success: true, data: mockData.user });
+});
+
+app.get('/api/hero', (req, res) => {
+  const user = mockData.user;
+  const heroInfo = {
+    nickname: user.nickname,
+    level: user.level,
+    coins: user.coins,
+    diamonds: user.diamonds,
+    currentAttributes: {
+      maxHp: user.maxHp,
+      attack: user.attack,
+      defense: user.defense,
+      speed: user.speed
+    },
+    attributeLevels: user.attributeLevels,
+    nextUpgradeCosts: {
+      hp: getAttributeCost('hp', user.attributeLevels.hp),
+      attack: getAttributeCost('attack', user.attributeLevels.attack),
+      defense: getAttributeCost('defense', user.attributeLevels.defense),
+      speed: getAttributeCost('speed', user.attributeLevels.speed)
+    },
+    nextLevelBonuses: {
+      hp: getHpByAttributeLevel(user.attributeLevels.hp + 1) - user.maxHp,
+      attack: getAttackByAttributeLevel(user.attributeLevels.attack + 1) - user.attack,
+      defense: getDefenseByAttributeLevel(user.attributeLevels.defense + 1) - user.defense,
+      speed: getSpeedByAttributeLevel(user.attributeLevels.speed + 1) - user.speed
+    },
+    maxLevel: 50
+  };
+  res.json({ success: true, data: heroInfo });
+});
+
+app.post('/api/hero/upgrade', (req, res) => {
+  const { attributeType } = req.body;
+  const user = mockData.user;
+  const result = upgradeAttribute(user, attributeType);
+  
+  if (!result.success) {
+    return res.status(400).json(result);
+  }
+  
+  const updatedInfo = {
+    ...result.data,
+    nextUpgradeCosts: {
+      hp: getAttributeCost('hp', user.attributeLevels.hp),
+      attack: getAttributeCost('attack', user.attributeLevels.attack),
+      defense: getAttributeCost('defense', user.attributeLevels.defense),
+      speed: getAttributeCost('speed', user.attributeLevels.speed)
+    },
+    nextLevelBonuses: {
+      hp: user.attributeLevels.hp < 50 ? getHpByAttributeLevel(user.attributeLevels.hp + 1) - user.maxHp : 0,
+      attack: user.attributeLevels.attack < 50 ? getAttackByAttributeLevel(user.attributeLevels.attack + 1) - user.attack : 0,
+      defense: user.attributeLevels.defense < 50 ? getDefenseByAttributeLevel(user.attributeLevels.defense + 1) - user.defense : 0,
+      speed: user.attributeLevels.speed < 50 ? getSpeedByAttributeLevel(user.attributeLevels.speed + 1) - user.speed : 0
+    }
+  };
+  
+  res.json({ success: true, data: updatedInfo });
 });
 
 app.post('/api/user/update', (req, res) => {

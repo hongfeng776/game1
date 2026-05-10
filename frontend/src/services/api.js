@@ -21,6 +21,11 @@ export const userAPI = {
   updateUser: (data) => api.post('/user/update', data),
 };
 
+export const heroAPI = {
+  getHeroInfo: () => api.get('/hero'),
+  upgradeAttribute: (attributeType) => api.post('/hero/upgrade', { attributeType }),
+};
+
 export const levelsAPI = {
   getLevels: (chapterId) => api.get('/levels', { params: { chapterId } }),
   getLevelMap: (levelId) => api.get(`/level/map/${levelId}`),

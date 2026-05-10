@@ -540,21 +540,50 @@ function GamePlay() {
                   {renderStars(resultData.stars)}
                 </div>
                 <div className="result-rewards">
+                  {resultData.difficultyName && (
+                    <div className="result-difficulty">
+                      <span className="result-difficulty-label">通关难度:</span>
+                      <span className={`result-difficulty-value difficulty-${resultData.difficulty}`}>
+                        {resultData.difficultyName}
+                      </span>
+                    </div>
+                  )}
+                  
                   <div className="reward-item">
                     <span className="reward-icon">💰</span>
                     <span>+{resultData.coins} 金币</span>
+                    {resultData.coinMultiplier && resultData.coinMultiplier > 1 && (
+                      <span className="reward-multiplier">×{resultData.coinMultiplier}</span>
+                    )}
                   </div>
                   <div className="reward-item">
                     <span className="reward-icon">✨</span>
                     <span>+{resultData.experience} 经验</span>
                   </div>
+                  
+                  {resultData.firstHardClearReward && (
+                    <div className="first-hard-clear-bonus">
+                      <div className="bonus-title">🎊 首次通关困难难度奖励！</div>
+                      <div className="bonus-item">
+                        <span className="bonus-icon">{resultData.firstHardClearReward.item?.icon}</span>
+                        <span className="bonus-text">
+                          获得稀有道具: {resultData.firstHardClearReward.item?.name} ×{resultData.firstHardClearReward.quantity}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
                   {resultData.drops && resultData.drops.length > 0 && (
                     <div className="drops-section">
                       <div className="drops-title">🎁 获得道具:</div>
                       <div className="drops-list">
                         {resultData.drops.map((drop, idx) => (
-                          <span key={idx} className="drop-item">
+                          <span 
+                            key={idx} 
+                            className={`drop-item ${drop.isFirstHardClear ? 'first-clear-drop' : ''}`}
+                          >
                             {drop.item?.icon} {drop.item?.name} ×{drop.quantity}
+                            {drop.isFirstHardClear && <span className="first-clear-badge">首次奖励</span>}
                           </span>
                         ))}
                       </div>

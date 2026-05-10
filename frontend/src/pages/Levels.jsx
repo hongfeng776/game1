@@ -195,6 +195,16 @@ function Levels() {
                         <div className="difficulty-icon">{diff.icon}</div>
                         <div className="difficulty-name">{diff.name}</div>
                         <div className="difficulty-desc">{diff.description}</div>
+                        
+                        {diff.monsterStrength && (
+                          <div className="difficulty-strength">
+                            <span className="strength-label">怪物强度:</span>
+                            <span className={`strength-value strength-${diff.id}`}>
+                              {diff.monsterStrength}
+                            </span>
+                          </div>
+                        )}
+                        
                         <div className="difficulty-details">
                           <div className="detail-item">
                             <span className="detail-icon">👾</span>
@@ -209,6 +219,24 @@ function Levels() {
                             <span>金币 ×{diff.coinMultiplier}</span>
                           </div>
                         </div>
+                        
+                        {diff.monsterStrengthDesc && (
+                          <div className="difficulty-tooltip">
+                            <div className="tooltip-section">
+                              <span className="tooltip-icon">👾</span>
+                              <span className="tooltip-text">{diff.monsterStrengthDesc}</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {diff.rewardDesc && (
+                          <div className="difficulty-tooltip reward-tooltip">
+                            <div className="tooltip-section">
+                              <span className="tooltip-icon">🎁</span>
+                              <span className="tooltip-text">{diff.rewardDesc}</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

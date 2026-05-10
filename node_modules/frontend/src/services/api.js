@@ -37,9 +37,10 @@ export const inventoryAPI = {
 
 export const levelsAPI = {
   getLevels: (chapterId) => api.get('/levels', { params: { chapterId } }),
-  getLevelMap: (levelId) => api.get(`/level/map/${levelId}`),
-  completeLevel: (levelId, timeUsed) => api.post('/level/complete', { levelId, timeUsed }),
+  getLevelMap: (levelId, difficulty) => api.get(`/level/map/${levelId}`, { params: { difficulty } }),
+  completeLevel: (levelId, timeUsed, difficulty) => api.post('/level/complete', { levelId, timeUsed, difficulty }),
   failLevel: (levelId) => api.post('/level/fail', { levelId }),
+  getDifficulties: () => api.get('/difficulties'),
 };
 
 export const chaptersAPI = {

@@ -44,32 +44,41 @@ const DIFFICULTY_CONFIG = {
   easy: {
     id: 'easy',
     name: '简单',
-    description: '适合新手，怪物较少，移动较慢',
+    description: '适合新手玩家体验',
     icon: '😊',
     monsterMultiplier: 0.5,
     monsterSpeedMultiplier: 0.7,
     coinMultiplier: 1.0,
-    color: '#4CAF50'
+    color: '#4CAF50',
+    monsterStrength: '较弱',
+    monsterStrengthDesc: '怪物数量仅为普通难度的50%，移动速度较慢，伤害较低',
+    rewardDesc: '金币奖励为基础值的100%，适合熟悉游戏机制'
   },
   normal: {
     id: 'normal',
     name: '普通',
-    description: '标准难度，适合大多数玩家',
+    description: '标准难度，均衡的挑战与奖励',
     icon: '😐',
     monsterMultiplier: 1.0,
     monsterSpeedMultiplier: 1.0,
     coinMultiplier: 1.5,
-    color: '#2196F3'
+    color: '#2196F3',
+    monsterStrength: '普通',
+    monsterStrengthDesc: '标准怪物数量和移动速度，需要一定的操作技巧',
+    rewardDesc: '金币奖励为基础值的150%，推荐大多数玩家选择'
   },
   hard: {
     id: 'hard',
     name: '困难',
-    description: '怪物较多，移动较快，奖励翻倍',
+    description: '高难度挑战，丰厚奖励',
     icon: '😈',
     monsterMultiplier: 1.5,
     monsterSpeedMultiplier: 1.3,
     coinMultiplier: 2.0,
-    color: '#f44336'
+    color: '#f44336',
+    monsterStrength: '强力',
+    monsterStrengthDesc: '怪物数量为普通难度的150%，移动速度提升30%，需要高超的反应能力',
+    rewardDesc: '金币奖励翻倍（200%），首次通关任意关卡还可获得稀有道具奖励！'
   }
 };
 
@@ -582,7 +591,8 @@ const mockData = {
     lastSupplementalMonth: null,
     freeSupplementalCount: 1,
     completedAchievements: [],
-    previousLevel: 1
+    previousLevel: 1,
+    hasFirstHardClearReward: false
   },
   levels: [],
   chapters: JSON.parse(JSON.stringify(CHAPTERS)),
@@ -1421,6 +1431,27 @@ app.post('/api/level/complete', (req, res) => {
   
   const newAchievements = checkAchievements(user, mockData.levels);
   
+  let firstHardClearReward = null;
+  if (difficulty === 'hard' && !user.hasFirstHardClearReward) {
+    user.hasFirstHardClearReward = true;
+    const hardRewardItemId = 'revive_scroll';
+    const hardRewardQuantity = 2;
+    const addResult = addItemToInventory(user, hardRewardItemId, hardRewardQuantity);
+    if (addResult.success) {
+      firstHardClearReward = {
+        itemId: hardRewardItemId,
+        item: getItem(hardRewardItemId),
+        quantity: hardRewardQuantity,
+        isFirstHardClear: true
+      };
+      if (appliedDrops.length > 0) {
+        appliedDrops.push(firstHardClearReward);
+      } else {
+        appliedDrops.push(firstHardClearReward);
+      }
+    }
+  }
+  
   res.json({ 
     success: true, 
     data: {
@@ -1435,6 +1466,8 @@ app.post('/api/level/complete', (req, res) => {
       difficulty: difficultyConfig.id,
       difficultyName: difficultyConfig.name,
       coinMultiplier: difficultyConfig.coinMultiplier,
+      monsterStrength: difficultyConfig.monsterStrength,
+      firstHardClearReward,
       user: { ...user },
       levels: mockData.levels
     }

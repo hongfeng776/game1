@@ -56,6 +56,7 @@ export function useGame(mapData, user) {
     attackBoost: 0
   });
   const [wasRevived, setWasRevived] = useState(false);
+  const [monsters, setMonsters] = useState([]);
   
   const timerRef = useRef(null);
   const playerPosRef = useRef(null);
@@ -63,6 +64,8 @@ export function useGame(mapData, user) {
   const buffsRef = useRef({ attackBoost: 0 });
   const gameEndedRef = useRef(false);
   const externalHandlersRef = useRef(null);
+  const monsterTimersRef = useRef([]);
+  const monstersRef = useRef([]);
 
   const currentMaxHp = baseMaxHp;
   const currentAttack = Math.floor(baseAttack * (1 + buffs.attackBoost));
@@ -88,6 +91,13 @@ export function useGame(mapData, user) {
     }
   }, [playerPos]);
 
+  const clearMonsterTimers = useCallback(() => {
+    monsterTimersRef.current.forEach(timer => {
+      if (timer) clearInterval(timer);
+    });
+    monsterTimersRef.current = [];
+  }, []);
+
   const resetGame = useCallback(() => {
     if (mapData) {
       setPlayerPos({ ...mapData.startPos });
@@ -106,8 +116,108 @@ export function useGame(mapData, user) {
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
+      
+      clearMonsterTimers();
+      const initialMonsters = mapData.monsters ? mapData.monsters.map(m => ({ ...m })) : [];
+      setMonsters(initialMonsters);
+      monstersRef.current = initialMonsters;
     }
-  }, [mapData, baseMaxHp]);
+  }, [mapData, baseMaxHp, clearMonsterTimers]);
+
+  const moveMonster = useCallback((monster, onRevive, hasReviveItem) => {
+    if (gameEndedRef.current) return;
+    
+    const directions = [
+      { dx: 0, dy: -1 },
+      { dx: 0, dy: 1 },
+      { dx: -1, dy: 0 },
+      { dx: 1, dy: 0 }
+    ];
+    
+    let newX = monster.x;
+    let newY = monster.y;
+    
+    const preferredDirs = [monster.direction, (monster.direction + 1) % 4, (monster.direction + 3) % 4, (monster.direction + 2) % 4];
+    
+    for (const dirIdx of preferredDirs) {
+      const dir = directions[dirIdx];
+      const testX = monster.x + dir.dx;
+      const testY = monster.y + dir.dy;
+      
+      if (mapData && testX >= 0 && testX < mapData.width && testY >= 0 && testY < mapData.height) {
+        const tile = mapData.map[testY][testX];
+        if (tile !== TILE_TYPES.WALL && tile !== TILE_TYPES.TRAP) {
+          newX = testX;
+          newY = testY;
+          monster.direction = dirIdx;
+          break;
+        }
+      }
+    }
+    
+    const updatedMonster = { ...monster, x: newX, y: newY };
+    
+    if (playerPosRef.current) {
+      const playerX = playerPosRef.current.x;
+      const playerY = playerPosRef.current.y;
+      
+      if (newX === playerX && newY === playerY) {
+        const baseDamage = monster.damage;
+        const damageResult = takeDamage(baseDamage);
+        
+        setDamageFlash(true);
+        setTimeout(() => setDamageFlash(false), 300);
+        
+        if (damageResult.isDead) {
+          if (!wasRevived && hasReviveItem) {
+            setWasRevived(true);
+            if (onRevive) {
+              const reviveHp = Math.floor(currentMaxHp * 0.5);
+              setHp(reviveHp);
+              hpRef.current = reviveHp;
+              gameEndedRef.current = false;
+              onRevive();
+            }
+          } else {
+            gameEndedRef.current = true;
+            setIsGameOver(true);
+            setIsPlaying(false);
+            if (timerRef.current) {
+              clearInterval(timerRef.current);
+              timerRef.current = null;
+            }
+            clearMonsterTimers();
+          }
+        }
+      }
+    }
+    
+    return updatedMonster;
+  }, [mapData, takeDamage, wasRevived, currentMaxHp, clearMonsterTimers]);
+
+  const startMonsterMovement = useCallback((onRevive, hasReviveItem) => {
+    clearMonsterTimers();
+    
+    monstersRef.current.forEach((monster, index) => {
+      const timer = setInterval(() => {
+        if (gameEndedRef.current || isPaused) return;
+        
+        setMonsters(prevMonsters => {
+          const newMonsters = [...prevMonsters];
+          if (newMonsters[index]) {
+            const movedMonster = moveMonster(newMonsters[index], onRevive, hasReviveItem);
+            if (movedMonster) {
+              newMonsters[index] = movedMonster;
+              monstersRef.current = newMonsters;
+            }
+          }
+          return newMonsters;
+        });
+      }, monster.moveInterval || 1500);
+      
+      monsterTimersRef.current.push(timer);
+    });
+  }, [clearMonsterTimers, moveMonster, isPaused]);
 
   const startGame = useCallback(() => {
     if (!isPlaying && !isGameOver) {
@@ -115,8 +225,14 @@ export function useGame(mapData, user) {
       timerRef.current = setInterval(() => {
         setTimeUsed(prev => prev + 1);
       }, 1000);
+      
+      if (externalHandlersRef.current?.onRevive && externalHandlersRef.current?.hasReviveItem !== undefined) {
+        startMonsterMovement(externalHandlersRef.current.onRevive, externalHandlersRef.current.hasReviveItem);
+      } else {
+        startMonsterMovement();
+      }
     }
-  }, [isPlaying, isGameOver]);
+  }, [isPlaying, isGameOver, startMonsterMovement]);
 
   const togglePause = useCallback(() => {
     if (isPlaying && !isGameOver) {
@@ -330,6 +446,7 @@ export function useGame(mapData, user) {
     isWin,
     timeUsed,
     damageFlash,
+    monsters,
     startGame,
     resetGame,
     togglePause,

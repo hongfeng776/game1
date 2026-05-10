@@ -93,4 +93,9 @@ export const endlessAPI = {
   failLevel: (levelIndex, timeUsed, totalCoinsEarned, totalExpEarned, totalScoreEarned, levelCompleted) => api.post('/endless/fail', { levelIndex, timeUsed, totalCoinsEarned, totalExpEarned, totalScoreEarned, levelCompleted }),
 };
 
+export const saveAPI = {
+  save: () => api.post('/save'),
+  getStatus: () => api.get('/save/status'),
+};
+
 export default api;

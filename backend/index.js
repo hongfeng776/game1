@@ -1,8 +1,52 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
+const SAVE_FILE = path.join(__dirname, 'game_save.json');
+
+function saveGameData() {
+  try {
+    const saveData = {
+      user: mockData.user,
+      levels: mockData.levels,
+      settings: mockData.settings,
+      savedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(SAVE_FILE, JSON.stringify(saveData, null, 2));
+    console.log('[存档] 游戏数据已保存');
+    return true;
+  } catch (error) {
+    console.error('[存档] 保存失败:', error);
+    return false;
+  }
+}
+
+function loadGameData() {
+  try {
+    if (fs.existsSync(SAVE_FILE)) {
+      const data = fs.readFileSync(SAVE_FILE, 'utf8');
+      const saveData = JSON.parse(data);
+      if (saveData.user) mockData.user = saveData.user;
+      if (saveData.levels) {
+        saveData.levels.forEach(savedLevel => {
+          const existingLevel = mockData.levels.find(l => l.id === savedLevel.id);
+          if (existingLevel) {
+            Object.assign(existingLevel, savedLevel);
+          }
+        });
+      }
+      if (saveData.settings) mockData.settings = saveData.settings;
+      console.log('[存档] 游戏数据已加载，保存时间:', saveData.savedAt);
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('[存档] 加载失败:', error);
+    return false;
+  }
+}
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({
@@ -1128,6 +1172,8 @@ Object.keys(LEVEL_MAPS).forEach(levelId => {
   });
 });
 
+loadGameData();
+
 const mockPlayers = [
   {
     id: 1,
@@ -1882,6 +1928,7 @@ app.post('/api/hero/upgrade', (req, res) => {
     }
   };
   
+  saveGameData();
   res.json({ success: true, data: updatedInfo });
 });
 
@@ -1945,6 +1992,7 @@ app.post('/api/inventory/use', (req, res) => {
   
   const taskUpdated = updateTaskProgress(user, 'item_use', quantity);
   
+  saveGameData();
   res.json({
     success: true,
     data: {
@@ -2006,6 +2054,7 @@ app.get('/api/inventory/carry', (req, res) => {
 app.post('/api/user/update', (req, res) => {
   Object.assign(mockData.user, req.body);
   const leveledUp = checkLevelUp(mockData.user);
+  saveGameData();
   res.json({ success: true, data: mockData.user, leveledUp });
 });
 
@@ -2075,6 +2124,7 @@ app.get('/api/settings', (req, res) => {
 
 app.post('/api/settings', (req, res) => {
   Object.assign(mockData.settings, req.body);
+  saveGameData();
   res.json({ success: true, data: mockData.settings });
 });
 
@@ -2246,6 +2296,7 @@ app.post('/api/signin', (req, res) => {
     }
   });
   
+  saveGameData();
   res.json({
     success: true,
     data: {
@@ -2303,6 +2354,7 @@ app.post('/api/signin/supplemental', (req, res) => {
     }
   });
   
+  saveGameData();
   res.json({
     success: true,
     data: {
@@ -2483,6 +2535,7 @@ app.post('/api/daily-tasks/claim', (req, res) => {
   
   const leveledUp = checkLevelUp(user);
   
+  saveGameData();
   res.json({
     success: true,
     data: {
@@ -2529,6 +2582,7 @@ app.post('/api/daily-tasks/claim-all', (req, res) => {
   
   const leveledUp = checkLevelUp(user);
   
+  saveGameData();
   res.json({
     success: true,
     data: {
@@ -2677,6 +2731,8 @@ app.post('/api/level/complete', (req, res) => {
     }
   }
   
+  saveGameData();
+  
   res.json({ 
     success: true, 
     data: {
@@ -2705,6 +2761,7 @@ app.post('/api/level/fail', (req, res) => {
   const user = mockData.user;
   
   user.hp = user.maxHp;
+  saveGameData();
   
   res.json({ 
     success: true, 
@@ -2784,6 +2841,7 @@ app.post('/api/skins/buy', (req, res) => {
   user.coins -= skin.price;
   if (!user.unlockedSkins) user.unlockedSkins = [];
   user.unlockedSkins.push(skinId);
+  saveGameData();
   
   res.json({
     success: true,
@@ -2811,6 +2869,7 @@ app.post('/api/skins/wear', (req, res) => {
   }
   
   user.currentSkin = skinId;
+  saveGameData();
   
   res.json({
     success: true,
@@ -3327,6 +3386,7 @@ app.post('/api/endless/complete', (req, res) => {
   const scoreGradient = getScoreGradient(levelIndex);
   
   user.hp = user.maxHp;
+  saveGameData();
   
   res.json({
     success: true,
@@ -3389,6 +3449,7 @@ app.post('/api/endless/fail', (req, res) => {
   }
   
   user.hp = user.maxHp;
+  saveGameData();
   
   res.json({
     success: true,
@@ -3402,6 +3463,44 @@ app.post('/api/endless/fail', (req, res) => {
       finalScore,
       user: { ...user }
     }
+  });
+});
+
+app.post('/api/save', (req, res) => {
+  const success = saveGameData();
+  res.json({
+    success,
+    data: {
+      savedAt: new Date().toISOString()
+    }
+  });
+});
+
+app.get('/api/save/status', (req, res) => {
+  const fs = require('fs');
+  const exists = fs.existsSync(SAVE_FILE);
+  let saveInfo = null;
+  
+  if (exists) {
+    try {
+      const stats = fs.statSync(SAVE_FILE);
+      const data = JSON.parse(fs.readFileSync(SAVE_FILE, 'utf8'));
+      saveInfo = {
+        exists: true,
+        savedAt: data.savedAt,
+        size: stats.size,
+        userLevel: data.user?.level,
+        coins: data.user?.coins,
+        completedLevels: data.user?.completedLevels
+      };
+    } catch (error) {
+      saveInfo = { exists: true, error: '无法读取存档信息' };
+    }
+  }
+  
+  res.json({
+    success: true,
+    data: saveInfo
   });
 });
 

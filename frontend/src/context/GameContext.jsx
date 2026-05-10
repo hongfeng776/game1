@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { userAPI } from '../services/api';
+import { userAPI, saveAPI } from '../services/api';
 
 const GameContext = createContext(null);
 
@@ -29,12 +29,38 @@ export function GameProvider({ children }) {
     await fetchUser();
   }, [fetchUser]);
 
+  const saveGame = useCallback(async () => {
+    try {
+      await saveAPI.save();
+      console.log('[存档] 游戏已保存');
+    } catch (error) {
+      console.error('[存档] 保存失败:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchUser();
+
+    const handleBeforeUnload = async (event) => {
+      try {
+        await saveAPI.save();
+        console.log('[存档] 游戏退出前已自动保存');
+      } catch (error) {
+        console.error('[存档] 自动保存失败:', error);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleBeforeUnload);
+    };
   }, [fetchUser]);
 
   return (
-    <GameContext.Provider value={{ user, isLoading, updateUser, refreshUser }}>
+    <GameContext.Provider value={{ user, isLoading, updateUser, refreshUser, saveGame }}>
       {children}
     </GameContext.Provider>
   );

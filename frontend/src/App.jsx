@@ -4,11 +4,15 @@ import Start from './pages/Start'
 import Levels from './pages/Levels'
 import Profile from './pages/Profile'
 import Settings from './pages/Settings'
+import GamePlay from './pages/GamePlay'
 import './styles/App.css'
 
 function Navbar() {
   const location = useLocation()
   const isActive = (path) => location.pathname === path
+  const isGamePage = location.pathname.startsWith('/game/')
+
+  if (isGamePage) return null
 
   return (
     <nav className="navbar">
@@ -39,6 +43,9 @@ function Navbar() {
 function MobileNavbar() {
   const location = useLocation()
   const isActive = (path) => location.pathname === path
+  const isGamePage = location.pathname.startsWith('/game/')
+
+  if (isGamePage) return null
 
   return (
     <nav className="mobile-navbar">
@@ -78,6 +85,7 @@ function App() {
             <Route path="/levels" element={<Levels />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/game/:levelId" element={<GamePlay />} />
           </Routes>
         </main>
         <MobileNavbar />

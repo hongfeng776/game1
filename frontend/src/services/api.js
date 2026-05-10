@@ -18,11 +18,18 @@ api.interceptors.response.use(
 
 export const userAPI = {
   getUser: () => api.get('/user'),
+  updateUser: (data) => api.post('/user/update', data),
 };
 
 export const levelsAPI = {
-  getLevels: () => api.get('/levels'),
-  completeLevel: (levelId, stars) => api.post('/level/complete', { levelId, stars }),
+  getLevels: (chapterId) => api.get('/levels', { params: { chapterId } }),
+  getLevelMap: (levelId) => api.get(`/level/map/${levelId}`),
+  completeLevel: (levelId, timeUsed) => api.post('/level/complete', { levelId, timeUsed }),
+  failLevel: (levelId) => api.post('/level/fail', { levelId }),
+};
+
+export const chaptersAPI = {
+  getChapters: () => api.get('/chapters'),
 };
 
 export const settingsAPI = {

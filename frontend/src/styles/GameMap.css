@@ -1,0 +1,141 @@
+.game-map-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.game-map {
+  position: relative;
+  background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.game-map.damage-flash {
+  animation: mapFlash 0.3s ease;
+}
+
+@keyframes mapFlash {
+  0%, 100% { filter: none; }
+  50% { filter: brightness(1.5) sepia(0.5) saturate(2); }
+}
+
+.tile {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.tile.empty {
+  background: linear-gradient(135deg, #a8e6cf 0%, #88d8b0 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tile.wall {
+  background: linear-gradient(135deg, #786fa6 0%, #574b90 100%);
+  border: 1px solid #4a3d6e;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.tile.start {
+  background: linear-gradient(135deg, #f9ca24 0%, #f0932b 100%);
+  border: 2px solid #e17055;
+}
+
+.tile.end {
+  background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+  border: 2px solid #0652DD;
+  animation: endPulse 2s ease-in-out infinite;
+}
+
+@keyframes endPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(116, 185, 255, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(116, 185, 255, 0.8); }
+}
+
+.tile.trap {
+  background: linear-gradient(135deg, #ff7675 0%, #d63031 100%);
+  border: 1px solid #c0392b;
+  animation: trapPulse 1s ease-in-out infinite;
+}
+
+@keyframes trapPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.trap-icon, .end-icon, .start-icon {
+  font-size: 1.5rem;
+}
+
+.player {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  z-index: 10;
+}
+
+.player-icon {
+  font-size: 1.8rem;
+  animation: playerBob 1s ease-in-out infinite;
+}
+
+@keyframes playerBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.player-damage {
+  animation: playerDamage 0.3s ease;
+}
+
+@keyframes playerDamage {
+  0%, 100% { transform: scale(1); }
+  25% { transform: scale(1.2); }
+  75% { transform: scale(0.9); }
+}
+
+.game-legend {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  font-size: 0.9rem;
+}
+
+.legend-icon {
+  font-size: 1.2rem;
+}
+
+@media (max-width: 768px) {
+  .game-map-container {
+    transform: scale(0.8);
+    transform-origin: top center;
+  }
+  
+  .game-legend {
+    gap: 10px;
+    padding: 8px 12px;
+    margin-top: 10px;
+  }
+  
+  .legend-item {
+    font-size: 0.8rem;
+  }
+}

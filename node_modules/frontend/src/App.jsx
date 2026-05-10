@@ -11,13 +11,14 @@ import SignIn from './pages/SignIn'
 import SkinShop from './pages/SkinShop'
 import Leaderboard from './pages/Leaderboard'
 import DailyTasks from './pages/DailyTasks'
+import EndlessMode from './pages/EndlessMode'
 import { GameProvider } from './context/GameContext'
 import './styles/App.css'
 
 function Navbar() {
   const location = useLocation()
   const isActive = (path) => location.pathname === path
-  const isGamePage = location.pathname.startsWith('/game/')
+  const isGamePage = location.pathname.startsWith('/game/') || location.pathname === '/endless'
 
   if (isGamePage) return null
 
@@ -65,7 +66,7 @@ function Navbar() {
 function MobileNavbar() {
   const location = useLocation()
   const isActive = (path) => location.pathname === path
-  const isGamePage = location.pathname.startsWith('/game/')
+  const isGamePage = location.pathname.startsWith('/game/') || location.pathname === '/endless'
 
   if (isGamePage) return null
 
@@ -130,6 +131,7 @@ function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/game/:levelId" element={<GamePlay />} />
+              <Route path="/endless" element={<EndlessMode />} />
             </Routes>
           </main>
           <MobileNavbar />

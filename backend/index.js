@@ -1023,7 +1023,24 @@ const ENDLESS_CONFIG = {
     damageMultiplier: 0.1
   },
   baseCoins: 50,
-  baseExp: 25
+  baseExp: 25,
+  score: {
+    baseScore: 100,
+    levelMultiplier: 1.1,
+    cycleBonus: 500,
+    timeBonusPerSecond: 0,
+    perfectBonus: 50
+  },
+  milestones: [
+    { level: 5, title: '初出茅庐', message: '恭喜通过第5关！你已经掌握了基本技巧！', icon: '🌟' },
+    { level: 10, title: '渐入佳境', message: '恭喜通过第10关！你的实力在不断提升！', icon: '⭐' },
+    { level: 15, title: '勇往直前', message: '恭喜通过第15关！挑战才刚刚开始！', icon: '✨' },
+    { level: 20, title: '过关斩将', message: '恭喜通过第20关！你是真正的勇士！', icon: '💫' },
+    { level: 30, title: '所向披靡', message: '恭喜通过第30关！无人能挡的存在！', icon: '🔥' },
+    { level: 50, title: '传奇战士', message: '恭喜通过第50关！你已成为传奇！', icon: '👑' },
+    { level: 75, title: '神话传说', message: '恭喜通过第75关！你的名字将被永远铭记！', icon: '🏆' },
+    { level: 100, title: '至高无上', message: '恭喜通过第100关！你是真正的游戏之王！', icon: '👸' }
+  ]
 };
 
 const mockData = {
@@ -1071,7 +1088,10 @@ const mockData = {
     lastDailyTaskRefreshDate: null,
     endlessHighestLevel: 0,
     endlessTotalRuns: 0,
-    endlessBestRun: null
+    endlessBestRun: null,
+    endlessTotalScore: 0,
+    endlessHighestScore: 0,
+    endlessBestScoreRun: null
   },
   levels: [],
   chapters: JSON.parse(JSON.stringify(CHAPTERS)),
@@ -3084,6 +3104,42 @@ function getEndlessMonsters(levelIndex, baseMonsters) {
   }));
 }
 
+function calculateLevelScore(levelIndex, isPerfect = false) {
+  const config = ENDLESS_CONFIG.score;
+  const cycles = Math.floor((levelIndex - 1) / Object.keys(LEVEL_MAPS).length);
+  
+  let score = config.baseScore;
+  score = score * Math.pow(config.levelMultiplier, levelIndex - 1);
+  
+  if (config.cycleBonus > 0 && cycles > 0) {
+    score += cycles * config.cycleBonus;
+  }
+  
+  if (isPerfect && config.perfectBonus > 0) {
+    score += config.perfectBonus;
+  }
+  
+  return Math.floor(score);
+}
+
+function calculateTotalScore(completedLevels) {
+  let total = 0;
+  for (let i = 1; i <= completedLevels; i++) {
+    total += calculateLevelScore(i);
+  }
+  return total;
+}
+
+function getMilestone(levelIndex) {
+  const milestones = ENDLESS_CONFIG.milestones;
+  for (const milestone of milestones) {
+    if (milestone.level === levelIndex) {
+      return milestone;
+    }
+  }
+  return null;
+}
+
 function getEndlessMilestoneReward(levelIndex) {
   if (levelIndex % ENDLESS_CONFIG.rewardInterval !== 0) return null;
   
@@ -3109,12 +3165,17 @@ app.get('/api/endless/status', (req, res) => {
       highestLevel: user.endlessHighestLevel || 0,
       totalRuns: user.endlessTotalRuns || 0,
       bestRun: user.endlessBestRun,
+      highestScore: user.endlessHighestScore || 0,
+      totalScore: user.endlessTotalScore || 0,
+      bestScoreRun: user.endlessBestScoreRun,
       config: {
         rewardInterval: ENDLESS_CONFIG.rewardInterval,
         rewards: ENDLESS_CONFIG.rewards.map(r => ({
           ...r,
           item: getItem(r.itemId)
-        }))
+        })),
+        scoreConfig: ENDLESS_CONFIG.score,
+        milestones: ENDLESS_CONFIG.milestones
       },
       user: { ...user }
     }
@@ -3183,7 +3244,7 @@ app.get('/api/endless/map/:levelIndex', (req, res) => {
 });
 
 app.post('/api/endless/complete', (req, res) => {
-  const { levelIndex, timeUsed } = req.body;
+  const { levelIndex, timeUsed, isPerfect } = req.body;
   const user = mockData.user;
   
   if (!levelIndex || levelIndex < 1) {
@@ -3224,6 +3285,8 @@ app.post('/api/endless/complete', (req, res) => {
     user.endlessHighestLevel = levelIndex;
   }
   
+  const levelScore = calculateLevelScore(levelIndex, isPerfect);
+  
   const taskUpdated = updateTaskProgress(user, 'level_complete', 1);
   
   const isNewRecord = !user.endlessBestRun || levelIndex > user.endlessBestRun.level;
@@ -3235,6 +3298,9 @@ app.post('/api/endless/complete', (req, res) => {
       date: new Date().toISOString()
     };
   }
+  
+  const milestone = getMilestone(levelIndex);
+  const isSpecialMilestone = !!milestone;
   
   user.hp = user.maxHp;
   
@@ -3248,6 +3314,9 @@ app.post('/api/endless/complete', (req, res) => {
       drops: appliedDrops,
       milestoneReward: appliedMilestoneReward,
       isMilestone: levelIndex % ENDLESS_CONFIG.rewardInterval === 0,
+      isSpecialMilestone,
+      specialMilestone: milestone,
+      levelScore,
       newHighest,
       isNewRecord,
       taskUpdated,
@@ -3257,12 +3326,16 @@ app.post('/api/endless/complete', (req, res) => {
 });
 
 app.post('/api/endless/fail', (req, res) => {
-  const { levelIndex, timeUsed, totalCoinsEarned, totalExpEarned } = req.body;
+  const { levelIndex, timeUsed, totalCoinsEarned, totalExpEarned, totalScoreEarned, levelCompleted } = req.body;
   const user = mockData.user;
   
   user.endlessTotalRuns = (user.endlessTotalRuns || 0) + 1;
   
   const reachedLevel = levelIndex - 1;
+  const finalScore = totalScoreEarned || calculateTotalScore(levelCompleted || reachedLevel);
+  
+  user.endlessTotalScore = (user.endlessTotalScore || 0) + finalScore;
+  
   const isNewRecord = reachedLevel > 0 && (!user.endlessBestRun || reachedLevel > user.endlessBestRun.level);
   
   if (isNewRecord && reachedLevel > 0) {
@@ -3270,6 +3343,17 @@ app.post('/api/endless/fail', (req, res) => {
       level: reachedLevel,
       timeUsed,
       coins: totalCoinsEarned || 0,
+      date: new Date().toISOString()
+    };
+  }
+  
+  const isNewScoreRecord = finalScore > (user.endlessHighestScore || 0);
+  if (isNewScoreRecord && finalScore > 0) {
+    user.endlessHighestScore = finalScore;
+    user.endlessBestScoreRun = {
+      score: finalScore,
+      level: reachedLevel,
+      timeUsed,
       date: new Date().toISOString()
     };
   }
@@ -3286,9 +3370,11 @@ app.post('/api/endless/fail', (req, res) => {
     data: {
       reachedLevel,
       isNewRecord,
+      isNewScoreRecord,
       newHighest,
       totalCoinsEarned: totalCoinsEarned || 0,
       totalExpEarned: totalExpEarned || 0,
+      finalScore,
       user: { ...user }
     }
   });

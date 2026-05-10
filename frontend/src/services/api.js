@@ -89,8 +89,8 @@ export const dailyTasksAPI = {
 export const endlessAPI = {
   getStatus: () => api.get('/endless/status'),
   getLevelMap: (levelIndex) => api.get(`/endless/map/${levelIndex}`),
-  completeLevel: (levelIndex, timeUsed) => api.post('/endless/complete', { levelIndex, timeUsed }),
-  failLevel: (levelIndex, timeUsed, totalCoinsEarned, totalExpEarned) => api.post('/endless/fail', { levelIndex, timeUsed, totalCoinsEarned, totalExpEarned }),
+  completeLevel: (levelIndex, timeUsed, isPerfect = false) => api.post('/endless/complete', { levelIndex, timeUsed, isPerfect }),
+  failLevel: (levelIndex, timeUsed, totalCoinsEarned, totalExpEarned, totalScoreEarned, levelCompleted) => api.post('/endless/fail', { levelIndex, timeUsed, totalCoinsEarned, totalExpEarned, totalScoreEarned, levelCompleted }),
 };
 
 export default api;

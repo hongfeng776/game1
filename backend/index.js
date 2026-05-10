@@ -920,12 +920,24 @@ function checkAndResetSupplementalCount(user) {
   }
 }
 
+function getDaysSinceLastSignIn(user) {
+  if (!user.lastSignInDate) return null;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const lastSignIn = new Date(user.lastSignInDate);
+  lastSignIn.setHours(0, 0, 0, 0);
+  
+  const diffTime = today.getTime() - lastSignIn.getTime();
+  const diffDays = diffTime / (1000 * 60 * 60 * 24);
+  
+  return diffDays;
+}
+
 function canSupplementalSignIn(user) {
   checkAndResetSupplementalCount(user);
   
   const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
   
   if (user.lastSignInDate === today.toDateString()) {
     return false;
@@ -935,11 +947,9 @@ function canSupplementalSignIn(user) {
     return false;
   }
   
-  const lastSignIn = new Date(user.lastSignInDate);
-  const dayBeforeYesterday = new Date(today);
-  dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
+  const daysSince = getDaysSinceLastSignIn(user);
   
-  if (lastSignIn.toDateString() !== dayBeforeYesterday.toDateString()) {
+  if (daysSince === null || daysSince < 1 || daysSince > 3) {
     return false;
   }
   
@@ -952,7 +962,8 @@ function getSupplementalInfo(user) {
   return {
     canSupplemental: canSupplementalSignIn(user),
     freeCount: user.freeSupplementalCount,
-    maxFreeCount: 1
+    maxFreeCount: 1,
+    daysSinceLastSignIn: getDaysSinceLastSignIn(user)
   };
 }
 
@@ -974,32 +985,48 @@ app.get('/api/signin/status', (req, res) => {
   });
 });
 
+const SIGNIN_REWARDS = {
+  1: { itemId: 'hp_potion', quantity: 2, coins: 50 },
+  2: { itemId: 'hp_potion', quantity: 3, coins: 100 },
+  3: { itemId: 'hp_potion', quantity: 2, coins: 100 },
+  4: { itemId: 'attack_boost', quantity: 1, coins: 150 },
+  5: { itemId: 'hp_potion', quantity: 2, coins: 200 },
+  6: { itemId: 'attack_boost', quantity: 1, coins: 200 },
+  7: { itemId: 'revive_scroll', quantity: 1, coins: 500 },
+  14: { itemId: 'attack_boost', quantity: 2, coins: 300 },
+  21: { itemId: 'hp_potion', quantity: 5, coins: 400 },
+  28: { itemId: 'revive_scroll', quantity: 2, coins: 1000 }
+};
+
 function getTodaySignInRewards(streakDay) {
-  const dayInWeek = ((streakDay - 1) % 7) + 1;
-  const rewards = [];
+  if (SIGNIN_REWARDS[streakDay]) {
+    return [SIGNIN_REWARDS[streakDay]];
+  }
   
-  const dayRewards = {
-    1: [{ itemId: 'hp_potion', quantity: 2, coins: 50 }],
-    2: [{ itemId: 'hp_potion', quantity: 3, coins: 100 }],
-    3: [{ itemId: 'hp_potion', quantity: 2, coins: 100 }],
-    4: [{ itemId: 'attack_boost', quantity: 1, coins: 150 }],
-    5: [{ itemId: 'hp_potion', quantity: 2, coins: 200 }],
-    6: [{ itemId: 'attack_boost', quantity: 1, coins: 200 }],
-    7: [{ itemId: 'revive_scroll', quantity: 1, coins: 500 }]
-  };
+  const weekCycle = ((streakDay - 1) % 7) + 1;
+  if (SIGNIN_REWARDS[weekCycle]) {
+    return [SIGNIN_REWARDS[weekCycle]];
+  }
   
-  return dayRewards[dayInWeek] || dayRewards[1];
+  return [SIGNIN_REWARDS[1]];
 }
 
 function getNextMonthRewards() {
-  return [
-    { day: 1, coins: 50, item: { id: 'hp_potion', name: '生命药水', icon: '🧪', quantity: 2 } },
-    { day: 3, coins: 100, item: { id: 'hp_potion', name: '生命药水', icon: '🧪', quantity: 2 } },
-    { day: 7, coins: 500, item: { id: 'revive_scroll', name: '复活卷轴', icon: '📜', quantity: 1 } },
-    { day: 14, coins: 300, item: { id: 'attack_boost', name: '狂暴药剂', icon: '💪', quantity: 2 } },
-    { day: 21, coins: 400, item: { id: 'hp_potion', name: '生命药水', icon: '🧪', quantity: 5 } },
-    { day: 28, coins: 1000, item: { id: 'revive_scroll', name: '复活卷轴', icon: '📜', quantity: 2 } }
-  ];
+  const specialDays = [7, 14, 21, 28];
+  return specialDays.map(day => {
+    const reward = SIGNIN_REWARDS[day];
+    const item = getItem(reward.itemId);
+    return {
+      day,
+      coins: reward.coins,
+      item: {
+        id: reward.itemId,
+        name: item?.name || '道具',
+        icon: item?.icon || '🎁',
+        quantity: reward.quantity
+      }
+    };
+  });
 }
 
 app.post('/api/signin', (req, res) => {
@@ -1066,12 +1093,11 @@ app.post('/api/signin/supplemental', (req, res) => {
   
   checkAndResetSupplementalCount(user);
   
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  
+  const daysSince = getDaysSinceLastSignIn(user) || 1;
+  const previousStreak = user.signInStreak;
+  user.signInStreak = previousStreak + Math.floor(daysSince);
+  user.lastSignInDate = today;
   user.freeSupplementalCount--;
-  user.signInStreak++;
-  user.lastSignInDate = yesterday.toDateString();
   
   const rewards = getTodaySignInRewards(user.signInStreak);
   const appliedRewards = [];
@@ -1098,6 +1124,8 @@ app.post('/api/signin/supplemental', (req, res) => {
     success: true,
     data: {
       streak: user.signInStreak,
+      previousStreak: previousStreak,
+      daysRecovered: Math.floor(daysSince),
       rewards: appliedRewards,
       coins: totalCoins,
       isSupplemental: true,

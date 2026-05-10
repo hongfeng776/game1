@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { levelsAPI } from '../services/api'
+import { levelsAPI, inventoryAPI } from '../services/api'
 import '../styles/Levels.css'
 
 function Levels() {
@@ -8,6 +8,7 @@ function Levels() {
   const [levels, setLevels] = useState([])
   const [selectedLevel, setSelectedLevel] = useState(null)
   const [showModal, setShowModal] = useState(false)
+  const [inventory, setInventory] = useState(null)
 
   useEffect(() => {
     levelsAPI.getLevels().then(res => {
@@ -15,12 +16,25 @@ function Levels() {
         setLevels(res.data)
       }
     })
+    loadInventory()
+  }, [])
+
+  const loadInventory = useCallback(async () => {
+    try {
+      const res = await inventoryAPI.getInventory()
+      if (res.success) {
+        setInventory(res.data.items)
+      }
+    } catch (error) {
+      console.error('加载背包失败:', error)
+    }
   }, [])
 
   const handleLevelClick = (level) => {
     if (level.isUnlocked) {
       setSelectedLevel(level)
       setShowModal(true)
+      loadInventory()
     }
   }
 
@@ -37,6 +51,18 @@ function Levels() {
       </span>
     ))
   }
+
+  const categoryConfig = {
+    heal: { name: '回复', icon: '❤️' },
+    buff: { name: '增益', icon: '✨' },
+    revive: { name: '复活', icon: '📜' },
+    shield: { name: '护盾', icon: '🛡️' }
+  }
+
+  const usableItems = inventory?.filter(inv => {
+    const categories = ['heal', 'buff', 'shield', 'revive']
+    return categories.includes(inv.item?.category) && inv.quantity > 0
+  }) || []
 
   return (
     <div className="levels-page">
@@ -94,7 +120,7 @@ function Levels() {
 
         {showModal && selectedLevel && (
           <div className="modal-overlay" onClick={() => setShowModal(false)}>
-            <div className="modal card" onClick={e => e.stopPropagation()}>
+            <div className="modal card level-modal" onClick={e => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>{selectedLevel.name}</h2>
                 <button className="modal-close" onClick={() => setShowModal(false)}>
@@ -118,6 +144,30 @@ function Levels() {
                       {selectedLevel.isCompleted ? '✅ 已完成' : '⏳ 待挑战'}
                     </span>
                   </div>
+                </div>
+
+                <div className="inventory-section">
+                  <h3 className="inventory-title">🎒 可用道具</h3>
+                  {usableItems.length === 0 ? (
+                    <div className="empty-inventory-hint">
+                      <p>背包空空如也</p>
+                      <p className="hint-text">通关关卡有概率获得道具</p>
+                    </div>
+                  ) : (
+                    <div className="usable-items-grid">
+                      {usableItems.map(inv => (
+                        <div 
+                          key={inv.itemId}
+                          className={`usable-item rarity-${inv.item?.rarity || 'common'}`}
+                          title={`${inv.item.name}: ${inv.item.description}`}
+                        >
+                          <span className="item-icon">{inv.item?.icon}</span>
+                          <span className="item-name">{inv.item?.name}</span>
+                          <span className="item-count">×{inv.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">

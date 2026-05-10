@@ -7,6 +7,7 @@ import Settings from './pages/Settings'
 import GamePlay from './pages/GamePlay'
 import Hero from './pages/Hero'
 import Inventory from './pages/Inventory'
+import SignIn from './pages/SignIn'
 import { GameProvider } from './context/GameContext'
 import './styles/App.css'
 
@@ -24,6 +25,9 @@ function Navbar() {
         <div className="nav-links">
           <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
             🏠 首页
+          </Link>
+          <Link to="/signin" className={`nav-link ${isActive('/signin') ? 'active' : ''}`}>
+            📅 每日签到
           </Link>
           <Link to="/hero" className={`nav-link ${isActive('/hero') ? 'active' : ''}`}>
             🦸 角色养成
@@ -59,6 +63,10 @@ function MobileNavbar() {
         🏠
         <span>首页</span>
       </Link>
+      <Link to="/signin" className={`mobile-nav-link ${isActive('/signin') ? 'active' : ''}`}>
+        📅
+        <span>签到</span>
+      </Link>
       <Link to="/hero" className={`mobile-nav-link ${isActive('/hero') ? 'active' : ''}`}>
         🦸
         <span>养成</span>
@@ -92,6 +100,7 @@ function App() {
           <main className="main-content">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/signin" element={<SignIn />} />
               <Route path="/hero" element={<Hero />} />
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/start" element={<Start />} />

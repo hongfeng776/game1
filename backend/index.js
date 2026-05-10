@@ -303,42 +303,22 @@ const LEVEL_MAPS = {
   }
 };
 
+const MAX_INVENTORY_SLOTS = 10;
+const MAX_ITEMS_PER_TYPE = 5;
+const MAX_CARRY_ITEMS = 2;
+
 const ITEMS = {
-  hp_potion_small: {
-    id: 'hp_potion_small',
-    name: '小型生命药水',
-    icon: '🧪',
+  hp_potion: {
+    id: 'hp_potion',
+    name: '生命药水',
+    icon: '�',
     type: 'consumable',
     category: 'heal',
     description: '恢复 30% 最大生命值',
     effect: { heal: 0.3, type: 'percent' },
     rarity: 'common',
     stackable: true,
-    maxStack: 99
-  },
-  hp_potion_medium: {
-    id: 'hp_potion_medium',
-    name: '中型生命药水',
-    icon: '🧴',
-    type: 'consumable',
-    category: 'heal',
-    description: '恢复 60% 最大生命值',
-    effect: { heal: 0.6, type: 'percent' },
-    rarity: 'uncommon',
-    stackable: true,
-    maxStack: 99
-  },
-  hp_potion_large: {
-    id: 'hp_potion_large',
-    name: '大型生命药水',
-    icon: '⚗️',
-    type: 'consumable',
-    category: 'heal',
-    description: '恢复 100% 最大生命值',
-    effect: { heal: 1.0, type: 'percent' },
-    rarity: 'rare',
-    stackable: true,
-    maxStack: 99
+    maxStack: MAX_ITEMS_PER_TYPE
   },
   attack_boost: {
     id: 'attack_boost',
@@ -346,75 +326,28 @@ const ITEMS = {
     icon: '💪',
     type: 'consumable',
     category: 'buff',
-    description: '本关攻击力 +50%',
-    effect: { attackBoost: 0.5, duration: 'level' },
+    description: '使用后 5 分钟内攻击力 +20%',
+    effect: { attackBoost: 0.2, duration: 300 },
     rarity: 'uncommon',
     stackable: true,
-    maxStack: 99
+    maxStack: MAX_ITEMS_PER_TYPE
   },
-  defense_boost: {
-    id: 'defense_boost',
-    name: '铁壁药剂',
-    icon: '🛡️',
-    type: 'consumable',
-    category: 'buff',
-    description: '本关防御力 +50%',
-    effect: { defenseBoost: 0.5, duration: 'level' },
-    rarity: 'uncommon',
-    stackable: true,
-    maxStack: 99
-  },
-  revive: {
-    id: 'revive',
+  revive_scroll: {
+    id: 'revive_scroll',
     name: '复活卷轴',
     icon: '📜',
     type: 'consumable',
     category: 'revive',
-    description: '死亡时自动复活并恢复 50% 生命值',
+    description: '死亡时原地复活并恢复 50% 生命值',
     effect: { revive: true, healPercent: 0.5 },
     rarity: 'rare',
     stackable: true,
-    maxStack: 99
-  },
-  speed_boost: {
-    id: 'speed_boost',
-    name: '疾风药剂',
-    icon: '💨',
-    type: 'consumable',
-    category: 'buff',
-    description: '本关移动速度 +30%',
-    effect: { speedBoost: 0.3, duration: 'level' },
-    rarity: 'uncommon',
-    stackable: true,
-    maxStack: 99
-  },
-  shield: {
-    id: 'shield',
-    name: '护盾水晶',
-    icon: '💎',
-    type: 'consumable',
-    category: 'shield',
-    description: '获得一个可吸收 50 点伤害的护盾',
-    effect: { shield: 50 },
-    rarity: 'rare',
-    stackable: true,
-    maxStack: 99
+    maxStack: MAX_ITEMS_PER_TYPE
   }
 };
 
-function getBaseInventorySlots() {
-  return 10;
-}
-
-function getBonusInventorySlots(userLevel) {
-  let bonus = 0;
-  if (userLevel >= 10) bonus += 5;
-  if (userLevel >= 20) bonus += 5;
-  return Math.min(bonus, 10);
-}
-
-function getMaxInventorySlots(userLevel) {
-  return getBaseInventorySlots() + getBonusInventorySlots(userLevel);
+function getMaxInventorySlots() {
+  return MAX_INVENTORY_SLOTS;
 }
 
 const ACHIEVEMENTS = {
@@ -423,7 +356,7 @@ const ACHIEVEMENTS = {
     name: '初出茅庐',
     description: '完成第一个关卡',
     icon: '🎯',
-    reward: { itemId: 'hp_potion_medium', quantity: 2 },
+    reward: { itemId: 'hp_potion', quantity: 2 },
     check: (user, levels) => levels.filter(l => l.isCompleted).length >= 1
   },
   ten_levels: {
@@ -431,7 +364,7 @@ const ACHIEVEMENTS = {
     name: '勇往直前',
     description: '完成 10 个关卡',
     icon: '🏆',
-    reward: { itemId: 'hp_potion_large', quantity: 2 },
+    reward: { itemId: 'hp_potion', quantity: 3 },
     check: (user, levels) => levels.filter(l => l.isCompleted).length >= 10
   },
   all_stars: {
@@ -439,7 +372,7 @@ const ACHIEVEMENTS = {
     name: '完美收集',
     description: '获得 30 颗星星',
     icon: '⭐',
-    reward: { itemId: 'revive', quantity: 2 },
+    reward: { itemId: 'revive_scroll', quantity: 2 },
     check: (user, levels) => user.totalStars >= 30
   },
   level_5: {
@@ -447,7 +380,7 @@ const ACHIEVEMENTS = {
     name: '崭露头角',
     description: '角色达到 5 级',
     icon: '🌟',
-    reward: { itemId: 'hp_potion_medium', quantity: 3 },
+    reward: { itemId: 'hp_potion', quantity: 3 },
     check: (user, levels) => user.level >= 5
   },
   level_10: {
@@ -455,7 +388,7 @@ const ACHIEVEMENTS = {
     name: '小有所成',
     description: '角色达到 10 级',
     icon: '💎',
-    reward: { itemId: 'hp_potion_large', quantity: 3 },
+    reward: { itemId: 'attack_boost', quantity: 2 },
     check: (user, levels) => user.level >= 10
   }
 };
@@ -485,13 +418,15 @@ const mockData = {
       speed: 1
     },
     inventory: {
-      hp_potion_small: 5,
-      hp_potion_medium: 2,
-      attack_boost: 3,
-      revive: 1
+      hp_potion: 3,
+      attack_boost: 2,
+      revive_scroll: 1
     },
+    carriedItems: [],
     lastSignInDate: null,
     signInStreak: 0,
+    lastSupplementalMonth: null,
+    freeSupplementalCount: 1,
     completedAchievements: [],
     previousLevel: 1
   },
@@ -645,21 +580,23 @@ function addItemToInventory(user, itemId, quantity = 1) {
   const item = getItem(itemId);
   if (!item) return { success: false, message: '道具不存在' };
   
+  const currentTypes = Object.keys(user.inventory).filter(k => user.inventory[k] > 0);
+  const isNewType = !user.inventory[itemId] || user.inventory[itemId] === 0;
+  
+  if (isNewType && currentTypes.length >= MAX_INVENTORY_SLOTS) {
+    return { success: false, message: '背包已满' };
+  }
+  
   if (!user.inventory[itemId]) {
     user.inventory[itemId] = 0;
   }
   
-  if (item.stackable) {
-    user.inventory[itemId] = Math.min(
-      user.inventory[itemId] + quantity,
-      item.maxStack
-    );
-  } else {
-    if (user.inventory[itemId] > 0) {
-      return { success: false, message: '该道具不可堆叠' };
-    }
-    user.inventory[itemId] = 1;
-  }
+  const newQuantity = Math.min(
+    user.inventory[itemId] + quantity,
+    MAX_ITEMS_PER_TYPE
+  );
+  
+  user.inventory[itemId] = newQuantity;
   
   return { success: true, quantity: user.inventory[itemId] };
 }
@@ -679,27 +616,32 @@ function removeItemFromInventory(user, itemId, quantity = 1) {
 
 function generateRandomDrops(levelId) {
   const drops = [];
-  const possibleDrops = [
-    { itemId: 'hp_potion_small', chance: 0.6, min: 1, max: 3 },
-    { itemId: 'hp_potion_medium', chance: 0.3, min: 1, max: 2 },
-    { itemId: 'hp_potion_large', chance: 0.1, min: 1, max: 1 },
-    { itemId: 'attack_boost', chance: 0.35, min: 1, max: 2 },
-    { itemId: 'defense_boost', chance: 0.35, min: 1, max: 2 },
-    { itemId: 'speed_boost', chance: 0.3, min: 1, max: 2 },
-    { itemId: 'revive', chance: 0.1, min: 1, max: 1 },
-    { itemId: 'shield', chance: 0.15, min: 1, max: 1 }
-  ];
   
-  possibleDrops.forEach(drop => {
-    if (Math.random() < drop.chance) {
-      const quantity = Math.floor(Math.random() * (drop.max - drop.min + 1)) + drop.min;
-      drops.push({
-        itemId: drop.itemId,
-        item: getItem(drop.itemId),
-        quantity
-      });
+  if (Math.random() < 0.3) {
+    const possibleDrops = [
+      { itemId: 'hp_potion', weight: 50 },
+      { itemId: 'attack_boost', weight: 35 },
+      { itemId: 'revive_scroll', weight: 15 }
+    ];
+    
+    const totalWeight = possibleDrops.reduce((sum, d) => sum + d.weight, 0);
+    let random = Math.random() * totalWeight;
+    
+    let selectedDrop = possibleDrops[0];
+    for (const drop of possibleDrops) {
+      random -= drop.weight;
+      if (random <= 0) {
+        selectedDrop = drop;
+        break;
+      }
     }
-  });
+    
+    drops.push({
+      itemId: selectedDrop.itemId,
+      item: getItem(selectedDrop.itemId),
+      quantity: 1
+    });
+  }
   
   return drops;
 }
@@ -800,8 +742,7 @@ app.get('/api/inventory', (req, res) => {
     quantity: user.inventory[itemId]
   })).filter(inv => inv.quantity > 0);
   
-  const maxSlots = getMaxInventorySlots(user.level);
-  const bonusSlots = getBonusInventorySlots(user.level);
+  const maxSlots = getMaxInventorySlots();
   
   res.json({
     success: true,
@@ -809,9 +750,9 @@ app.get('/api/inventory', (req, res) => {
       items: inventoryList,
       maxSlots,
       usedSlots: inventoryList.length,
-      baseSlots: getBaseInventorySlots(),
-      bonusSlots,
-      nextUnlockAt: user.level < 10 ? 10 : (user.level < 20 ? 20 : null)
+      maxItemsPerType: MAX_ITEMS_PER_TYPE,
+      maxCarryItems: MAX_CARRY_ITEMS,
+      carriedItems: user.carriedItems || []
     }
   });
 });
@@ -858,6 +799,52 @@ app.post('/api/inventory/use', (req, res) => {
       item,
       remaining: removeResult.remaining,
       effect: item.effect
+    }
+  });
+});
+
+app.post('/api/inventory/carry', (req, res) => {
+  const { itemIds } = req.body;
+  const user = mockData.user;
+  
+  if (!Array.isArray(itemIds)) {
+    return res.status(400).json({ success: false, message: '参数错误' });
+  }
+  
+  if (itemIds.length > MAX_CARRY_ITEMS) {
+    return res.status(400).json({ success: false, message: `最多携带 ${MAX_CARRY_ITEMS} 个道具` });
+  }
+  
+  for (const itemId of itemIds) {
+    const count = getInventoryCount(user, itemId);
+    if (count <= 0) {
+      return res.status(400).json({ success: false, message: `道具 ${itemId} 不存在` });
+    }
+  }
+  
+  const uniqueIds = [...new Set(itemIds)];
+  if (uniqueIds.length !== itemIds.length) {
+    return res.status(400).json({ success: false, message: '不能携带相同道具' });
+  }
+  
+  user.carriedItems = itemIds;
+  
+  res.json({
+    success: true,
+    data: {
+      carriedItems: itemIds
+    }
+  });
+});
+
+app.get('/api/inventory/carry', (req, res) => {
+  const user = mockData.user;
+  
+  res.json({
+    success: true,
+    data: {
+      carriedItems: user.carriedItems || [],
+      maxCarryItems: MAX_CARRY_ITEMS
     }
   });
 });
@@ -920,6 +907,55 @@ app.post('/api/settings', (req, res) => {
   res.json({ success: true, data: mockData.settings });
 });
 
+function getCurrentMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${now.getMonth() + 1}`;
+}
+
+function checkAndResetSupplementalCount(user) {
+  const currentMonth = getCurrentMonth();
+  if (user.lastSupplementalMonth !== currentMonth) {
+    user.lastSupplementalMonth = currentMonth;
+    user.freeSupplementalCount = 1;
+  }
+}
+
+function canSupplementalSignIn(user) {
+  checkAndResetSupplementalCount(user);
+  
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  if (user.lastSignInDate === today.toDateString()) {
+    return false;
+  }
+  
+  if (user.lastSignInDate === null || user.signInStreak === 0) {
+    return false;
+  }
+  
+  const lastSignIn = new Date(user.lastSignInDate);
+  const dayBeforeYesterday = new Date(today);
+  dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
+  
+  if (lastSignIn.toDateString() !== dayBeforeYesterday.toDateString()) {
+    return false;
+  }
+  
+  return user.freeSupplementalCount > 0;
+}
+
+function getSupplementalInfo(user) {
+  checkAndResetSupplementalCount(user);
+  
+  return {
+    canSupplemental: canSupplementalSignIn(user),
+    freeCount: user.freeSupplementalCount,
+    maxFreeCount: 1
+  };
+}
+
 app.get('/api/signin/status', (req, res) => {
   const user = mockData.user;
   const today = new Date().toDateString();
@@ -931,7 +967,9 @@ app.get('/api/signin/status', (req, res) => {
       canSignIn,
       lastSignInDate: user.lastSignInDate,
       streak: user.signInStreak,
-      todayRewards: getTodaySignInRewards(user.signInStreak + 1)
+      todayRewards: getTodaySignInRewards(user.signInStreak + 1),
+      supplemental: getSupplementalInfo(user),
+      nextMonthRewards: getNextMonthRewards()
     }
   });
 });
@@ -941,16 +979,27 @@ function getTodaySignInRewards(streakDay) {
   const rewards = [];
   
   const dayRewards = {
-    1: [{ itemId: 'hp_potion_small', quantity: 3, coins: 50 }],
-    2: [{ itemId: 'hp_potion_small', quantity: 5, coins: 100 }],
-    3: [{ itemId: 'hp_potion_medium', quantity: 2, coins: 100 }],
-    4: [{ itemId: 'attack_boost', quantity: 2, coins: 150 }],
-    5: [{ itemId: 'hp_potion_medium', quantity: 3, coins: 200 }],
-    6: [{ itemId: 'shield', quantity: 2, coins: 200 }],
-    7: [{ itemId: 'hp_potion_large', quantity: 2 }, { itemId: 'revive', quantity: 1, coins: 500 }]
+    1: [{ itemId: 'hp_potion', quantity: 2, coins: 50 }],
+    2: [{ itemId: 'hp_potion', quantity: 3, coins: 100 }],
+    3: [{ itemId: 'hp_potion', quantity: 2, coins: 100 }],
+    4: [{ itemId: 'attack_boost', quantity: 1, coins: 150 }],
+    5: [{ itemId: 'hp_potion', quantity: 2, coins: 200 }],
+    6: [{ itemId: 'attack_boost', quantity: 1, coins: 200 }],
+    7: [{ itemId: 'revive_scroll', quantity: 1, coins: 500 }]
   };
   
   return dayRewards[dayInWeek] || dayRewards[1];
+}
+
+function getNextMonthRewards() {
+  return [
+    { day: 1, coins: 50, item: { id: 'hp_potion', name: '生命药水', icon: '🧪', quantity: 2 } },
+    { day: 3, coins: 100, item: { id: 'hp_potion', name: '生命药水', icon: '🧪', quantity: 2 } },
+    { day: 7, coins: 500, item: { id: 'revive_scroll', name: '复活卷轴', icon: '📜', quantity: 1 } },
+    { day: 14, coins: 300, item: { id: 'attack_boost', name: '狂暴药剂', icon: '💪', quantity: 2 } },
+    { day: 21, coins: 400, item: { id: 'hp_potion', name: '生命药水', icon: '🧪', quantity: 5 } },
+    { day: 28, coins: 1000, item: { id: 'revive_scroll', name: '复活卷轴', icon: '📜', quantity: 2 } }
+  ];
 }
 
 app.post('/api/signin', (req, res) => {
@@ -974,6 +1023,7 @@ app.post('/api/signin', (req, res) => {
   
   const rewards = getTodaySignInRewards(user.signInStreak);
   const appliedRewards = [];
+  let totalCoins = 0;
   
   rewards.forEach(reward => {
     if (reward.itemId) {
@@ -987,6 +1037,7 @@ app.post('/api/signin', (req, res) => {
       }
     }
     if (reward.coins) {
+      totalCoins += reward.coins;
       user.coins += reward.coins;
     }
   });
@@ -996,6 +1047,60 @@ app.post('/api/signin', (req, res) => {
     data: {
       streak: user.signInStreak,
       rewards: appliedRewards,
+      coins: totalCoins,
+      user: { ...user }
+    }
+  });
+});
+
+app.post('/api/signin/supplemental', (req, res) => {
+  const user = mockData.user;
+  const today = new Date().toDateString();
+  
+  if (!canSupplementalSignIn(user)) {
+    return res.status(400).json({ 
+      success: false, 
+      message: '当前无法进行补签' 
+    });
+  }
+  
+  checkAndResetSupplementalCount(user);
+  
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  user.freeSupplementalCount--;
+  user.signInStreak++;
+  user.lastSignInDate = yesterday.toDateString();
+  
+  const rewards = getTodaySignInRewards(user.signInStreak);
+  const appliedRewards = [];
+  let totalCoins = 0;
+  
+  rewards.forEach(reward => {
+    if (reward.itemId) {
+      const result = addItemToInventory(user, reward.itemId, reward.quantity);
+      if (result.success) {
+        appliedRewards.push({
+          itemId: reward.itemId,
+          item: getItem(reward.itemId),
+          quantity: reward.quantity
+        });
+      }
+    }
+    if (reward.coins) {
+      totalCoins += reward.coins;
+      user.coins += reward.coins;
+    }
+  });
+  
+  res.json({
+    success: true,
+    data: {
+      streak: user.signInStreak,
+      rewards: appliedRewards,
+      coins: totalCoins,
+      isSupplemental: true,
       user: { ...user }
     }
   });
@@ -1094,16 +1199,7 @@ app.post('/api/level/complete', (req, res) => {
   
   user.completedLevels = mockData.levels.filter(l => l.isCompleted).length;
   
-  const previousLevel = user.previousLevel;
   const leveledUp = checkLevelUp(user);
-  
-  let inventorySlotsUnlocked = null;
-  if (previousLevel < 10 && user.level >= 10) {
-    inventorySlotsUnlocked = { level: 10, slots: 5, newTotal: getMaxInventorySlots(user.level) };
-  }
-  if (previousLevel < 20 && user.level >= 20) {
-    inventorySlotsUnlocked = { level: 20, slots: 5, newTotal: getMaxInventorySlots(user.level) };
-  }
   user.previousLevel = user.level;
   
   user.hp = user.maxHp;
@@ -1123,8 +1219,7 @@ app.post('/api/level/complete', (req, res) => {
       leveledUp,
       drops: appliedDrops,
       newAchievements,
-      inventorySlotsUnlocked,
-      maxInventorySlots: getMaxInventorySlots(user.level),
+      maxInventorySlots: getMaxInventorySlots(),
       user: { ...user },
       levels: mockData.levels
     }

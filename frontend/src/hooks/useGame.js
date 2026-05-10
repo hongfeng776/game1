@@ -16,61 +16,26 @@ function calculateDamage(baseDamage, defense) {
 }
 
 const ITEM_DEFS = {
-  hp_potion_small: {
-    id: 'hp_potion_small',
-    name: '小型生命药水',
+  hp_potion: {
+    id: 'hp_potion',
+    name: '生命药水',
     icon: '🧪',
     category: 'heal',
     effect: { heal: 0.3, type: 'percent' }
-  },
-  hp_potion_medium: {
-    id: 'hp_potion_medium',
-    name: '中型生命药水',
-    icon: '🧴',
-    category: 'heal',
-    effect: { heal: 0.6, type: 'percent' }
-  },
-  hp_potion_large: {
-    id: 'hp_potion_large',
-    name: '大型生命药水',
-    icon: '⚗️',
-    category: 'heal',
-    effect: { heal: 1.0, type: 'percent' }
   },
   attack_boost: {
     id: 'attack_boost',
     name: '狂暴药剂',
     icon: '💪',
     category: 'buff',
-    effect: { attackBoost: 0.5, duration: 'level' }
+    effect: { attackBoost: 0.2, duration: 300 }
   },
-  defense_boost: {
-    id: 'defense_boost',
-    name: '铁壁药剂',
-    icon: '🛡️',
-    category: 'buff',
-    effect: { defenseBoost: 0.5, duration: 'level' }
-  },
-  revive: {
-    id: 'revive',
+  revive_scroll: {
+    id: 'revive_scroll',
     name: '复活卷轴',
     icon: '📜',
     category: 'revive',
     effect: { revive: true, healPercent: 0.5 }
-  },
-  speed_boost: {
-    id: 'speed_boost',
-    name: '疾风药剂',
-    icon: '💨',
-    category: 'buff',
-    effect: { speedBoost: 0.3, duration: 'level' }
-  },
-  shield: {
-    id: 'shield',
-    name: '护盾水晶',
-    icon: '💎',
-    category: 'shield',
-    effect: { shield: 50 }
   }
 };
 
@@ -87,37 +52,29 @@ export function useGame(mapData, user) {
   const [isWin, setIsWin] = useState(false);
   const [timeUsed, setTimeUsed] = useState(0);
   const [damageFlash, setDamageFlash] = useState(false);
-  const [shield, setShield] = useState(0);
   const [buffs, setBuffs] = useState({
-    attackBoost: 0,
-    defenseBoost: 0,
-    speedBoost: 0
+    attackBoost: 0
   });
   const [wasRevived, setWasRevived] = useState(false);
   
   const timerRef = useRef(null);
   const playerPosRef = useRef(null);
   const hpRef = useRef(baseMaxHp);
-  const shieldRef = useRef(0);
-  const buffsRef = useRef({ attackBoost: 0, defenseBoost: 0, speedBoost: 0 });
+  const buffsRef = useRef({ attackBoost: 0 });
   const gameEndedRef = useRef(false);
   const externalHandlersRef = useRef(null);
 
   const currentMaxHp = baseMaxHp;
   const currentAttack = Math.floor(baseAttack * (1 + buffs.attackBoost));
-  const currentDefense = Math.floor(baseDefense * (1 + buffs.defenseBoost));
+  const currentDefense = baseDefense;
 
   useEffect(() => {
     hpRef.current = hp;
   }, [hp]);
 
   useEffect(() => {
-    shieldRef.current = shield;
-  }, [shield]);
-
-  useEffect(() => {
     buffsRef.current = { ...buffs };
-  }, [buffs.attackBoost, buffs.defenseBoost, buffs.speedBoost]);
+  }, [buffs.attackBoost]);
 
   useEffect(() => {
     if (mapData) {
@@ -141,10 +98,8 @@ export function useGame(mapData, user) {
       setIsGameOver(false);
       setIsWin(false);
       setTimeUsed(0);
-      setShield(0);
-      shieldRef.current = 0;
-      setBuffs({ attackBoost: 0, defenseBoost: 0, speedBoost: 0 });
-      buffsRef.current = { attackBoost: 0, defenseBoost: 0, speedBoost: 0 };
+      setBuffs({ attackBoost: 0 });
+      buffsRef.current = { attackBoost: 0 };
       setWasRevived(false);
       gameEndedRef.current = false;
       if (timerRef.current) {
@@ -202,36 +157,14 @@ export function useGame(mapData, user) {
     }
 
     if (item.category === 'buff') {
-      const currentBuffs = { ...buffsRef.current };
-      let updated = false;
-      
-      if (effect.attackBoost && currentBuffs.attackBoost < effect.attackBoost) {
-        currentBuffs.attackBoost = effect.attackBoost;
-        updated = true;
-      }
-      if (effect.defenseBoost && currentBuffs.defenseBoost < effect.defenseBoost) {
-        currentBuffs.defenseBoost = effect.defenseBoost;
-        updated = true;
-      }
-      if (effect.speedBoost && currentBuffs.speedBoost < effect.speedBoost) {
-        currentBuffs.speedBoost = effect.speedBoost;
-        updated = true;
-      }
-      
-      if (!updated) {
+      if (effect.attackBoost && buffsRef.current.attackBoost < effect.attackBoost) {
+        setBuffs({ attackBoost: effect.attackBoost });
+        buffsRef.current = { attackBoost: effect.attackBoost };
+        return { success: true, type: 'buff', buff: effect };
+      } else if (effect.attackBoost && buffsRef.current.attackBoost >= effect.attackBoost) {
         return { success: false, message: '已有更强的增益效果' };
       }
-      
-      setBuffs({ ...currentBuffs });
-      buffsRef.current = { ...currentBuffs };
       return { success: true, type: 'buff', buff: effect };
-    }
-
-    if (item.category === 'shield') {
-      const newShield = shieldRef.current + effect.shield;
-      setShield(newShield);
-      shieldRef.current = newShield;
-      return { success: true, type: 'shield', shieldAmount: effect.shield };
     }
 
     if (item.category === 'revive') {
@@ -242,17 +175,7 @@ export function useGame(mapData, user) {
   }, [currentMaxHp]);
 
   const takeDamage = useCallback((baseDamage) => {
-    const defense = Math.floor(baseDefense * (1 + buffsRef.current.defenseBoost));
-    let damage = calculateDamage(baseDamage, defense);
-    
-    let shieldAbsorbed = 0;
-    if (shieldRef.current > 0) {
-      shieldAbsorbed = Math.min(shieldRef.current, damage);
-      const newShield = shieldRef.current - shieldAbsorbed;
-      setShield(newShield);
-      shieldRef.current = newShield;
-      damage -= shieldAbsorbed;
-    }
+    let damage = calculateDamage(baseDamage, currentDefense);
 
     if (damage > 0) {
       const newHp = Math.max(0, hpRef.current - damage);
@@ -260,12 +183,12 @@ export function useGame(mapData, user) {
       hpRef.current = newHp;
       
       if (newHp <= 0) {
-        return { isDead: true, damage, shieldAbsorbed };
+        return { isDead: true, damage };
       }
     }
 
-    return { isDead: false, damage, shieldAbsorbed };
-  }, [baseDefense]);
+    return { isDead: false, damage };
+  }, [currentDefense]);
 
   const checkCollision = useCallback((x, y, onRevive, hasReviveItem) => {
     if (gameEndedRef.current) return {};
@@ -286,8 +209,6 @@ export function useGame(mapData, user) {
             const reviveHp = Math.floor(currentMaxHp * 0.5);
             setHp(reviveHp);
             hpRef.current = reviveHp;
-            setShield(0);
-            shieldRef.current = 0;
             gameEndedRef.current = false;
             onRevive();
             return { revived: true, damage: baseDamage };
@@ -304,7 +225,7 @@ export function useGame(mapData, user) {
         return { gameOver: true, win: false };
       }
       
-      return { damaged: true, damage: baseDamage, shieldAbsorbed: damageResult.shieldAbsorbed };
+      return { damaged: true, damage: baseDamage };
     }
     
     if (tile === TILE_TYPES.END) {
@@ -401,7 +322,6 @@ export function useGame(mapData, user) {
     maxHp: currentMaxHp,
     attack: currentAttack,
     defense: currentDefense,
-    shield,
     buffs,
     wasRevived,
     isPlaying,

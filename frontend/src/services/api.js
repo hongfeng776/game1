@@ -31,6 +31,8 @@ export const inventoryAPI = {
   getAllItems: () => api.get('/items'),
   addItem: (itemId, quantity) => api.post('/inventory/add', { itemId, quantity }),
   useItem: (itemId, quantity) => api.post('/inventory/use', { itemId, quantity }),
+  carryItems: (itemIds) => api.post('/inventory/carry', { itemIds }),
+  getCarriedItems: () => api.get('/inventory/carry'),
 };
 
 export const levelsAPI = {
@@ -52,6 +54,7 @@ export const settingsAPI = {
 export const signInAPI = {
   getStatus: () => api.get('/signin/status'),
   signIn: () => api.post('/signin'),
+  supplementalSignIn: () => api.post('/signin/supplemental'),
 };
 
 export const achievementAPI = {

@@ -2,9 +2,52 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 const SAVE_FILE = path.join(__dirname, 'game_save.json');
+const BACKUP_DIR = path.join(__dirname, 'backups');
+const MAX_BACKUPS = 10;
+
+if (!fs.existsSync(BACKUP_DIR)) {
+  fs.mkdirSync(BACKUP_DIR, { recursive: true });
+}
+
+function generateChecksum(data) {
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify(data))
+    .digest('hex');
+}
+
+function validateSaveData(saveData) {
+  if (!saveData || typeof saveData !== 'object') {
+    return { valid: false, error: '存档格式错误' };
+  }
+  
+  if (!saveData.user || typeof saveData.user !== 'object') {
+    return { valid: false, error: '缺少用户数据' };
+  }
+  
+  if (!Array.isArray(saveData.levels)) {
+    return { valid: false, error: '关卡数据格式错误' };
+  }
+  
+  if (saveData.checksum) {
+    const dataToVerify = {
+      user: saveData.user,
+      levels: saveData.levels,
+      settings: saveData.settings,
+      savedAt: saveData.savedAt
+    };
+    const expectedChecksum = generateChecksum(dataToVerify);
+    if (saveData.checksum !== expectedChecksum) {
+      return { valid: false, error: '存档校验失败，数据可能已损坏' };
+    }
+  }
+  
+  return { valid: true };
+}
 
 function saveGameData() {
   try {
@@ -14,6 +57,8 @@ function saveGameData() {
       settings: mockData.settings,
       savedAt: new Date().toISOString()
     };
+    saveData.checksum = generateChecksum(saveData);
+    
     fs.writeFileSync(SAVE_FILE, JSON.stringify(saveData, null, 2));
     console.log('[存档] 游戏数据已保存');
     return true;
@@ -28,6 +73,13 @@ function loadGameData() {
     if (fs.existsSync(SAVE_FILE)) {
       const data = fs.readFileSync(SAVE_FILE, 'utf8');
       const saveData = JSON.parse(data);
+      
+      const validation = validateSaveData(saveData);
+      if (!validation.valid) {
+        console.error('[存档] 存档损坏:', validation.error);
+        return { success: false, error: validation.error, corrupted: true };
+      }
+      
       if (saveData.user) mockData.user = saveData.user;
       if (saveData.levels) {
         saveData.levels.forEach(savedLevel => {
@@ -39,12 +91,159 @@ function loadGameData() {
       }
       if (saveData.settings) mockData.settings = saveData.settings;
       console.log('[存档] 游戏数据已加载，保存时间:', saveData.savedAt);
-      return true;
+      return { success: true, saveData };
     }
-    return false;
+    return { success: false, error: '存档文件不存在' };
   } catch (error) {
     console.error('[存档] 加载失败:', error);
-    return false;
+    return { success: false, error: error.message, corrupted: true };
+  }
+}
+
+function getBackupList() {
+  try {
+    if (!fs.existsSync(BACKUP_DIR)) return [];
+    
+    const files = fs.readdirSync(BACKUP_DIR)
+      .filter(file => file.endsWith('.json'))
+      .map(file => {
+        const filePath = path.join(BACKUP_DIR, file);
+        const stats = fs.statSync(filePath);
+        let backupInfo = {
+          filename: file,
+          createdAt: stats.mtime.toISOString(),
+          size: stats.size
+        };
+        
+        try {
+          const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          backupInfo.userLevel = data.user?.level;
+          backupInfo.coins = data.user?.coins;
+          backupInfo.completedLevels = data.user?.completedLevels;
+          backupInfo.savedAt = data.savedAt;
+        } catch (e) {
+          backupInfo.corrupted = true;
+        }
+        
+        return backupInfo;
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    return files;
+  } catch (error) {
+    console.error('[备份] 获取备份列表失败:', error);
+    return [];
+  }
+}
+
+function createBackup(name) {
+  try {
+    const saveData = {
+      user: mockData.user,
+      levels: mockData.levels,
+      settings: mockData.settings,
+      savedAt: new Date().toISOString()
+    };
+    saveData.checksum = generateChecksum(saveData);
+    
+    const timestamp = Date.now();
+    const backupName = name ? `${name}_${timestamp}.json` : `backup_${timestamp}.json`;
+    const backupPath = path.join(BACKUP_DIR, backupName);
+    
+    fs.writeFileSync(backupPath, JSON.stringify(saveData, null, 2));
+    console.log('[备份] 备份已创建:', backupName);
+    
+    const backups = getBackupList();
+    if (backups.length > MAX_BACKUPS) {
+      const toDelete = backups.slice(MAX_BACKUPS);
+      toDelete.forEach(backup => {
+        const filePath = path.join(BACKUP_DIR, backup.filename);
+        fs.unlinkSync(filePath);
+        console.log('[备份] 自动删除旧备份:', backup.filename);
+      });
+    }
+    
+    return { success: true, filename: backupName };
+  } catch (error) {
+    console.error('[备份] 创建失败:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+function restoreBackup(filename) {
+  try {
+    const backupPath = path.join(BACKUP_DIR, filename);
+    if (!fs.existsSync(backupPath)) {
+      return { success: false, error: '备份文件不存在' };
+    }
+    
+    const data = fs.readFileSync(backupPath, 'utf8');
+    const saveData = JSON.parse(data);
+    
+    const validation = validateSaveData(saveData);
+    if (!validation.valid) {
+      return { success: false, error: validation.error, corrupted: true };
+    }
+    
+    if (saveData.user) mockData.user = saveData.user;
+    if (saveData.levels) {
+      saveData.levels.forEach(savedLevel => {
+        const existingLevel = mockData.levels.find(l => l.id === savedLevel.id);
+        if (existingLevel) {
+          Object.assign(existingLevel, savedLevel);
+        }
+      });
+    }
+    if (saveData.settings) mockData.settings = saveData.settings;
+    
+    saveGameData();
+    console.log('[备份] 已从备份恢复:', filename);
+    return { success: true, saveData };
+  } catch (error) {
+    console.error('[备份] 恢复失败:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+function deleteBackup(filename) {
+  try {
+    const backupPath = path.join(BACKUP_DIR, filename);
+    if (!fs.existsSync(backupPath)) {
+      return { success: false, error: '备份文件不存在' };
+    }
+    
+    fs.unlinkSync(backupPath);
+    console.log('[备份] 备份已删除:', filename);
+    return { success: true };
+  } catch (error) {
+    console.error('[备份] 删除失败:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+function checkSaveIntegrity() {
+  try {
+    if (!fs.existsSync(SAVE_FILE)) {
+      return { valid: true, exists: false };
+    }
+    
+    const data = fs.readFileSync(SAVE_FILE, 'utf8');
+    const saveData = JSON.parse(data);
+    const validation = validateSaveData(saveData);
+    
+    return {
+      valid: validation.valid,
+      exists: true,
+      error: validation.error,
+      savedAt: saveData.savedAt
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      exists: true,
+      error: error.message,
+      corrupted: true
+    };
   }
 }
 const PORT = process.env.PORT || 3001;
@@ -3477,7 +3676,6 @@ app.post('/api/save', (req, res) => {
 });
 
 app.get('/api/save/status', (req, res) => {
-  const fs = require('fs');
   const exists = fs.existsSync(SAVE_FILE);
   let saveInfo = null;
   
@@ -3502,6 +3700,46 @@ app.get('/api/save/status', (req, res) => {
     success: true,
     data: saveInfo
   });
+});
+
+app.get('/api/save/integrity', (req, res) => {
+  const result = checkSaveIntegrity();
+  res.json({
+    success: true,
+    data: result
+  });
+});
+
+app.get('/api/backups', (req, res) => {
+  const backups = getBackupList();
+  res.json({
+    success: true,
+    data: backups
+  });
+});
+
+app.post('/api/backups/create', (req, res) => {
+  const { name } = req.body;
+  const result = createBackup(name);
+  res.json(result);
+});
+
+app.post('/api/backups/restore', (req, res) => {
+  const { filename } = req.body;
+  if (!filename) {
+    return res.status(400).json({ success: false, error: '缺少备份文件名' });
+  }
+  const result = restoreBackup(filename);
+  res.json(result);
+});
+
+app.delete('/api/backups/:filename', (req, res) => {
+  const { filename } = req.params;
+  if (!filename) {
+    return res.status(400).json({ success: false, error: '缺少备份文件名' });
+  }
+  const result = deleteBackup(filename);
+  res.json(result);
 });
 
 app.get('/api/health', (req, res) => {

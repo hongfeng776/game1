@@ -96,6 +96,14 @@ export const endlessAPI = {
 export const saveAPI = {
   save: () => api.post('/save'),
   getStatus: () => api.get('/save/status'),
+  checkIntegrity: () => api.get('/save/integrity'),
+};
+
+export const backupAPI = {
+  getList: () => api.get('/backups'),
+  create: (name) => api.post('/backups/create', { name }),
+  restore: (filename) => api.post('/backups/restore', { filename }),
+  delete: (filename) => api.delete(`/backups/${encodeURIComponent(filename)}`),
 };
 
 export default api;

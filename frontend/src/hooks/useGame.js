@@ -66,6 +66,7 @@ export function useGame(mapData, user) {
   const externalHandlersRef = useRef(null);
   const monsterTimersRef = useRef([]);
   const monstersRef = useRef([]);
+  const triggeredEggsRef = useRef(new Set());
 
   const currentMaxHp = baseMaxHp;
   const currentAttack = Math.floor(baseAttack * (1 + buffs.attackBoost));
@@ -121,6 +122,7 @@ export function useGame(mapData, user) {
       const initialMonsters = mapData.monsters ? mapData.monsters.map(m => ({ ...m })) : [];
       setMonsters(initialMonsters);
       monstersRef.current = initialMonsters;
+      triggeredEggsRef.current = new Set();
     }
   }, [mapData, baseMaxHp, clearMonsterTimers]);
 
@@ -310,6 +312,21 @@ export function useGame(mapData, user) {
   const checkCollision = useCallback((x, y, onRevive, hasReviveItem) => {
     if (gameEndedRef.current) return {};
     
+    const eggs = mapData?.eggs || [];
+    const egg = eggs.find(e => 
+      !e.isTriggered && 
+      !triggeredEggsRef.current.has(e.id) &&
+      e.position.x === x && 
+      e.position.y === y
+    );
+    
+    if (egg) {
+      triggeredEggsRef.current.add(egg.id);
+      if (externalHandlersRef.current?.onEggTrigger) {
+        externalHandlersRef.current.onEggTrigger(egg);
+      }
+    }
+    
     const tile = getTileType(x, y);
     
     if (tile === TILE_TYPES.TRAP) {
@@ -358,7 +375,7 @@ export function useGame(mapData, user) {
     }
     
     return {};
-  }, [getTileType, takeDamage, wasRevived, currentMaxHp]);
+  }, [getTileType, takeDamage, wasRevived, currentMaxHp, mapData]);
 
   const movePlayer = useCallback((dx, dy, onRevive, hasReviveItem) => {
     if (!isPlaying || isPaused || isGameOver || !playerPosRef.current) return null;

@@ -3,7 +3,7 @@ import '../styles/GameMap.css';
 
 const DEFAULT_SKIN_ICON = '🧙';
 
-function GameMap({ mapData, playerPos, damageFlash, monsters, skinIcon = DEFAULT_SKIN_ICON }) {
+function GameMap({ mapData, playerPos, damageFlash, monsters, skinIcon = DEFAULT_SKIN_ICON, eggs = [] }) {
   if (!mapData) return null;
 
   const renderTile = (tileType, x, y) => {
@@ -73,6 +73,22 @@ function GameMap({ mapData, playerPos, damageFlash, monsters, skinIcon = DEFAULT
           </div>
         ))}
         
+        {eggs.filter(e => !e.isTriggered).map(egg => (
+          <div 
+            key={egg.id}
+            className="egg hidden-egg"
+            style={{
+              width: TILE_SIZE,
+              height: TILE_SIZE,
+              left: egg.position.x * TILE_SIZE,
+              top: egg.position.y * TILE_SIZE
+            }}
+            title={`彩蛋: ${egg.name}`}
+          >
+            <span className="egg-icon">🎁</span>
+          </div>
+        ))}
+        
         {playerPos && (
           <div 
             className={`player ${damageFlash ? 'player-damage' : ''}`}
@@ -109,6 +125,12 @@ function GameMap({ mapData, playerPos, damageFlash, monsters, skinIcon = DEFAULT
           <span className="legend-icon">🧙</span>
           <span>角色</span>
         </div>
+        {eggs && eggs.length > 0 && (
+          <div className="legend-item">
+            <span className="legend-icon">🎁</span>
+            <span>隐藏彩蛋</span>
+          </div>
+        )}
       </div>
     </div>
   );

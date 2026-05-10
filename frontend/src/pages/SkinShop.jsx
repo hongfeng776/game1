@@ -43,6 +43,16 @@ function SkinShop() {
 
   const handleBuySkin = async (skinId, skin) => {
     if (buying) return;
+    
+    if (skin.type !== 'common') {
+      showNotification('稀有皮肤无法购买，需通过签到解锁！', 'error');
+      return;
+    }
+    
+    if (skin.unlocked) {
+      showNotification('您已拥有该皮肤！', 'error');
+      return;
+    }
 
     try {
       setBuying(true);
@@ -92,6 +102,12 @@ function SkinShop() {
   const navigateSkin = (direction) => {
     if (!selectedSkin || currentTabSkins.length === 0) return;
     const currentIndex = currentTabSkins.findIndex(skin => skin.id === selectedSkin.id);
+    
+    if (currentIndex === -1) {
+      setSelectedSkin(currentTabSkins[0]);
+      return;
+    }
+    
     let newIndex = currentIndex + direction;
     if (newIndex < 0) {
       newIndex = currentTabSkins.length - 1;

@@ -3542,6 +3542,50 @@ app.post('/api/level/egg/trigger', (req, res) => {
   });
 });
 
+app.get('/api/eggs/all', (req, res) => {
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
+  
+  const triggeredEggIds = user.triggeredEggs || [];
+  const allEggs = [];
+  let totalCoins = 0;
+  let totalItems = 0;
+  
+  Object.keys(LEVEL_EGGS).forEach(levelId => {
+    const levelEggs = LEVEL_EGGS[levelId];
+    const level = currentData.levels.find(l => l.id === parseInt(levelId));
+    
+    levelEggs.forEach(egg => {
+      const isTriggered = triggeredEggIds.includes(egg.id);
+      const isLevelUnlocked = level ? level.isUnlocked : false;
+      
+      allEggs.push({
+        ...egg,
+        isTriggered,
+        isLevelUnlocked
+      });
+      
+      if (isTriggered) {
+        totalCoins += egg.reward.coins || 0;
+        totalItems += (egg.reward.items || []).reduce((sum, item) => sum + item.quantity, 0);
+      }
+    });
+  });
+  
+  res.json({
+    success: true,
+    data: {
+      eggs: allEggs,
+      stats: {
+        total: allEggs.length,
+        unlocked: allEggs.filter(e => e.isTriggered).length,
+        totalCoins,
+        totalItems
+      }
+    }
+  });
+});
+
 app.get('/api/skins', (req, res) => {
   const currentData = getCurrentSaveData(req.deviceId);
   const user = currentData.user;

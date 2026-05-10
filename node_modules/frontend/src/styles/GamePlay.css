@@ -895,6 +895,66 @@
   flex-wrap: wrap;
 }
 
+.egg-modal {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 3px solid #FFD700;
+}
+
+.egg-modal h2 {
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.egg-found-icon {
+  font-size: 5rem;
+  margin-bottom: 15px;
+  animation: eggCelebrate 0.6s ease;
+}
+
+@keyframes eggCelebrate {
+  0% { transform: scale(0) rotate(-180deg); }
+  50% { transform: scale(1.3) rotate(10deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.egg-name {
+  color: #FFD700;
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin-bottom: 8px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.egg-description {
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+}
+
+.egg-rewards {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 20px;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+}
+
+.egg-rewards .reward-item {
+  color: white;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 10px 15px;
+  border-radius: 10px;
+}
+
+.egg-rewards .drops-title {
+  color: #FFD700;
+}
+
+.egg-rewards .drop-item {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: white;
+}
+
 @media (max-width: 1024px) {
   .game-container {
     flex-direction: column;

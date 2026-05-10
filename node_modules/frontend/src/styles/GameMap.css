@@ -120,6 +120,42 @@
   50% { transform: translateY(-2px) scale(1.05); }
 }
 
+.egg {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 8;
+}
+
+.hidden-egg {
+  opacity: 0.3;
+  animation: eggGlow 2s ease-in-out infinite;
+}
+
+@keyframes eggGlow {
+  0%, 100% { 
+    opacity: 0.2;
+    transform: scale(0.9);
+    filter: blur(1px);
+  }
+  50% { 
+    opacity: 0.5;
+    transform: scale(1.1);
+    filter: blur(0.5px);
+  }
+}
+
+.egg-icon {
+  font-size: 1.4rem;
+  animation: eggFloat 1.5s ease-in-out infinite;
+}
+
+@keyframes eggFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(5deg); }
+}
+
 .game-legend {
   display: flex;
   gap: 20px;

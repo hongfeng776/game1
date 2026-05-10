@@ -12,6 +12,7 @@ import SkinShop from './pages/SkinShop'
 import Leaderboard from './pages/Leaderboard'
 import DailyTasks from './pages/DailyTasks'
 import EndlessMode from './pages/EndlessMode'
+import EggCollection from './pages/EggCollection'
 import { GameProvider } from './context/GameContext'
 import './styles/App.css'
 
@@ -50,6 +51,9 @@ function Navbar() {
           </Link>
           <Link to="/levels" className={`nav-link ${isActive('/levels') ? 'active' : ''}`}>
             🎯 关卡
+          </Link>
+          <Link to="/egg-collection" className={`nav-link ${isActive('/egg-collection') ? 'active' : ''}`}>
+            🎁 彩蛋图鉴
           </Link>
           <Link to="/profile" className={`nav-link ${isActive('/profile') ? 'active' : ''}`}>
             👤 个人中心
@@ -100,6 +104,10 @@ function MobileNavbar() {
         🎯
         <span>关卡</span>
       </Link>
+      <Link to="/egg-collection" className={`mobile-nav-link ${isActive('/egg-collection') ? 'active' : ''}`}>
+        🎁
+        <span>彩蛋</span>
+      </Link>
       <Link to="/profile" className={`mobile-nav-link ${isActive('/profile') ? 'active' : ''}`}>
         👤
         <span>我的</span>
@@ -128,6 +136,7 @@ function App() {
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/start" element={<Start />} />
               <Route path="/levels" element={<Levels />} />
+              <Route path="/egg-collection" element={<EggCollection />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/game/:levelId" element={<GamePlay />} />

@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { levelsAPI, inventoryAPI } from '../services/api';
+import { levelsAPI, inventoryAPI, settingsAPI } from '../services/api';
 import { useGame } from '../hooks/useGame';
 import { useGameContext } from '../context/GameContext';
 import GameMap from '../components/GameMap';
 import { getSkinIcon } from '../config/skinConfig';
+import { playEggFoundSound, setAudioSettings } from '../utils/audio';
 import '../styles/GamePlay.css';
 
 const ITEM_DISPLAY = {
@@ -110,6 +111,8 @@ function GamePlay() {
     pendingEggRequestRef.current = true;
     
     try {
+      playEggFoundSound();
+      
       const res = await levelsAPI.triggerEgg(parseInt(levelId), egg.id, egg.position);
       
       if (res.success) {
@@ -247,6 +250,14 @@ function GamePlay() {
 
   const hasReviveItem = inventory?.some(i => i.itemId === 'revive_scroll' && i.quantity > 0) && !game.wasRevived;
   const hasReviveCarried = carriedItems.includes('revive_scroll') && inventory?.some(i => i.itemId === 'revive_scroll' && i.quantity > 0) && !game.wasRevived;
+
+  useEffect(() => {
+    settingsAPI.getSettings().then(res => {
+      if (res.success) {
+        setAudioSettings(res.data);
+      }
+    }).catch(err => console.warn('获取音效设置失败:', err));
+  }, []);
 
   useEffect(() => {
     game.setExternalHandlers({

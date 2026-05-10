@@ -68,6 +68,7 @@ export const levelsAPI = {
   getDifficulties: () => api.get('/difficulties'),
   getLevelEggs: (levelId) => api.get(`/level/eggs/${levelId}`),
   triggerEgg: (levelId, eggId, position) => api.post('/level/egg/trigger', { levelId, eggId, position }),
+  getAllEggs: () => api.get('/eggs/all'),
 };
 
 export const chaptersAPI = {

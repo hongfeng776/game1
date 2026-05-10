@@ -10,6 +10,7 @@ import Inventory from './pages/Inventory'
 import SignIn from './pages/SignIn'
 import SkinShop from './pages/SkinShop'
 import Leaderboard from './pages/Leaderboard'
+import DailyTasks from './pages/DailyTasks'
 import { GameProvider } from './context/GameContext'
 import './styles/App.css'
 
@@ -27,6 +28,9 @@ function Navbar() {
         <div className="nav-links">
           <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
             🏠 首页
+          </Link>
+          <Link to="/daily-tasks" className={`nav-link ${isActive('/daily-tasks') ? 'active' : ''}`}>
+            📋 每日任务
           </Link>
           <Link to="/signin" className={`nav-link ${isActive('/signin') ? 'active' : ''}`}>
             📅 每日签到
@@ -71,6 +75,10 @@ function MobileNavbar() {
         🏠
         <span>首页</span>
       </Link>
+      <Link to="/daily-tasks" className={`mobile-nav-link ${isActive('/daily-tasks') ? 'active' : ''}`}>
+        📋
+        <span>任务</span>
+      </Link>
       <Link to="/signin" className={`mobile-nav-link ${isActive('/signin') ? 'active' : ''}`}>
         📅
         <span>签到</span>
@@ -112,6 +120,7 @@ function App() {
           <main className="main-content">
             <Routes>
               <Route path="/" element={<Home />} />
+              <Route path="/daily-tasks" element={<DailyTasks />} />
               <Route path="/signin" element={<SignIn />} />
               <Route path="/leaderboard" element={<Leaderboard />} />
               <Route path="/hero" element={<Hero />} />

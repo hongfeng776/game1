@@ -75,7 +75,14 @@ export const skinAPI = {
 
 export const leaderboardAPI = {
   getLeaderboard: (type = 'levels') => api.get('/leaderboard', { params: { type } }),
+  refreshLeaderboard: (type = 'levels') => api.post('/leaderboard/refresh', null, { params: { type } }),
   getLeaderboardTypes: () => api.get('/leaderboard/types'),
+};
+
+export const dailyTasksAPI = {
+  getTasks: () => api.get('/daily-tasks'),
+  claimReward: (taskId) => api.post('/daily-tasks/claim', { taskId }),
+  claimAllRewards: () => api.post('/daily-tasks/claim-all'),
 };
 
 export default api;

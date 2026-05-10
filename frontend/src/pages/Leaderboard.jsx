@@ -18,9 +18,34 @@ function Leaderboard() {
       } else {
         setLoading(true);
       }
-      const res = await leaderboardAPI.getLeaderboard(type);
+      
+      let res;
+      if (isManualRefresh) {
+        res = await leaderboardAPI.refreshLeaderboard(type);
+      } else {
+        res = await leaderboardAPI.getLeaderboard(type);
+      }
+      
       if (res.success) {
-        setLeaderboardData(res.data);
+        const data = res.data;
+        
+        console.log('[排行榜] 收到数据:', {
+          myRank: data.myRank,
+          myData: data.myData,
+          currentUserSnapshot: data.currentUserSnapshot,
+          playerCount: data.players.length
+        });
+        
+        if (data.currentUserSnapshot) {
+          console.log('[排行榜] 当前用户快照:', data.currentUserSnapshot);
+        }
+        
+        if (!data.myData && data.currentUserSnapshot) {
+          console.log('[排行榜] 警告: myData 为空，但有 currentUserSnapshot');
+        }
+        
+        setLeaderboardData(data);
+        
         if (isManualRefresh) {
           setRefreshSuccess(true);
           setTimeout(() => setRefreshSuccess(false), 2000);
@@ -35,6 +60,7 @@ function Leaderboard() {
   }, []);
 
   const handleRefresh = useCallback(() => {
+    console.log('[排行榜] 手动刷新被触发，type:', activeTab);
     loadLeaderboard(activeTab, true);
   }, [activeTab, loadLeaderboard]);
 

@@ -785,6 +785,89 @@ const ACHIEVEMENTS = {
   }
 };
 
+const DAILY_TASKS = [
+  {
+    id: 'complete_level',
+    name: '勇者试炼',
+    description: '完成任意1个关卡',
+    icon: '🎯',
+    target: 1,
+    reward: {
+      coins: 100,
+      experience: 50
+    },
+    trackType: 'level_complete'
+  },
+  {
+    id: 'use_item',
+    name: '道具达人',
+    description: '在游戏中使用任意1个道具',
+    icon: '🧪',
+    target: 1,
+    reward: {
+      coins: 80,
+      experience: 30
+    },
+    trackType: 'item_use'
+  },
+  {
+    id: 'daily_signin',
+    name: '每日报到',
+    description: '完成当日签到',
+    icon: '📅',
+    target: 1,
+    reward: {
+      coins: 50,
+      experience: 20
+    },
+    trackType: 'signin'
+  }
+];
+
+function getTodayDate() {
+  return new Date().toDateString();
+}
+
+function getDefaultDailyTasks() {
+  const today = getTodayDate();
+  return DAILY_TASKS.map(task => ({
+    ...task,
+    progress: 0,
+    isCompleted: false,
+    isClaimed: false,
+    lastUpdateDate: today
+  }));
+}
+
+function checkAndResetDailyTasks(user) {
+  const today = getTodayDate();
+  
+  if (!user.dailyTasks || !user.lastDailyTaskDate || user.lastDailyTaskDate !== today) {
+    user.dailyTasks = getDefaultDailyTasks();
+    user.lastDailyTaskDate = today;
+  }
+  
+  return user.dailyTasks;
+}
+
+function updateTaskProgress(user, trackType, amount = 1) {
+  const tasks = checkAndResetDailyTasks(user);
+  let updated = false;
+  
+  tasks.forEach(task => {
+    if (task.trackType === trackType && !task.isCompleted) {
+      const newProgress = Math.min(task.progress + amount, task.target);
+      if (newProgress !== task.progress) {
+        task.progress = newProgress;
+        task.isCompleted = task.progress >= task.target;
+        updated = true;
+      }
+    }
+  });
+  
+  return updated;
+}
+
 const mockData = {
   user: {
     id: 1,
@@ -823,7 +906,9 @@ const mockData = {
     previousLevel: 1,
     hasFirstHardClearReward: false,
     currentSkin: 'default',
-    unlockedSkins: ['default']
+    unlockedSkins: ['default'],
+    dailyTasks: null,
+    lastDailyTaskDate: null
   },
   levels: [],
   chapters: JSON.parse(JSON.stringify(CHAPTERS)),
@@ -1666,13 +1751,16 @@ app.post('/api/inventory/use', (req, res) => {
     return res.status(400).json(removeResult);
   }
   
+  const taskUpdated = updateTaskProgress(user, 'item_use', quantity);
+  
   res.json({
     success: true,
     data: {
       itemId,
       item,
       remaining: removeResult.remaining,
-      effect: item.effect
+      effect: item.effect,
+      taskUpdated
     }
   });
 });
@@ -1943,6 +2031,8 @@ app.post('/api/signin', (req, res) => {
   
   user.lastSignInDate = today;
   
+  const taskUpdated = updateTaskProgress(user, 'signin', 1);
+  
   const rewards = getTodaySignInRewards(user.signInStreak);
   const appliedRewards = [];
   let totalCoins = 0;
@@ -1971,6 +2061,7 @@ app.post('/api/signin', (req, res) => {
       rewards: appliedRewards,
       coins: totalCoins,
       isSpecialReward: isSpecialRewardDay(user.signInStreak),
+      taskUpdated,
       user: { ...user }
     }
   });
@@ -1996,6 +2087,8 @@ app.post('/api/signin/supplemental', (req, res) => {
   user.signInStreak = previousStreak + daysRecovered;
   user.lastSignInDate = today;
   user.freeSupplementalCount--;
+  
+  const taskUpdated = updateTaskProgress(user, 'signin', 1);
   
   const rewards = getTodaySignInRewards(user.signInStreak);
   const appliedRewards = [];
@@ -2028,7 +2121,129 @@ app.post('/api/signin/supplemental', (req, res) => {
       coins: totalCoins,
       isSupplemental: true,
       isSpecialReward: isSpecialRewardDay(user.signInStreak),
+      taskUpdated,
       user: { ...user }
+    }
+  });
+});
+
+app.get('/api/daily-tasks', (req, res) => {
+  const user = mockData.user;
+  const tasks = checkAndResetDailyTasks(user);
+  
+  const completedCount = tasks.filter(t => t.isCompleted).length;
+  const claimedCount = tasks.filter(t => t.isClaimed).length;
+  const totalReward = tasks.reduce((sum, t) => sum + t.reward.coins, 0);
+  const totalExp = tasks.reduce((sum, t) => sum + t.reward.experience, 0);
+  const earnedCoins = tasks.filter(t => t.isClaimed).reduce((sum, t) => sum + t.reward.coins, 0);
+  const earnedExp = tasks.filter(t => t.isClaimed).reduce((sum, t) => sum + t.reward.experience, 0);
+  
+  res.json({
+    success: true,
+    data: {
+      tasks,
+      summary: {
+        total: tasks.length,
+        completed: completedCount,
+        claimed: claimedCount,
+        totalReward,
+        totalExp,
+        earnedCoins,
+        earnedExp
+      },
+      user: {
+        coins: user.coins,
+        experience: user.experience,
+        level: user.level
+      }
+    }
+  });
+});
+
+app.post('/api/daily-tasks/claim', (req, res) => {
+  const { taskId } = req.body;
+  const user = mockData.user;
+  const tasks = checkAndResetDailyTasks(user);
+  
+  const task = tasks.find(t => t.id === taskId);
+  
+  if (!task) {
+    return res.status(404).json({ success: false, message: '任务不存在' });
+  }
+  
+  if (!task.isCompleted) {
+    return res.status(400).json({ success: false, message: '任务尚未完成' });
+  }
+  
+  if (task.isClaimed) {
+    return res.status(400).json({ success: false, message: '奖励已领取' });
+  }
+  
+  task.isClaimed = true;
+  user.coins += task.reward.coins;
+  user.experience += task.reward.experience;
+  
+  const leveledUp = checkLevelUp(user);
+  
+  res.json({
+    success: true,
+    data: {
+      taskId,
+      reward: task.reward,
+      leveledUp,
+      user: {
+        coins: user.coins,
+        experience: user.experience,
+        level: user.level,
+        nextLevelExp: user.nextLevelExp
+      }
+    }
+  });
+});
+
+app.post('/api/daily-tasks/claim-all', (req, res) => {
+  const user = mockData.user;
+  const tasks = checkAndResetDailyTasks(user);
+  
+  const completedUnclaimed = tasks.filter(t => t.isCompleted && !t.isClaimed);
+  
+  if (completedUnclaimed.length === 0) {
+    return res.status(400).json({ success: false, message: '没有可领取的奖励' });
+  }
+  
+  let totalCoins = 0;
+  let totalExp = 0;
+  const claimedTasks = [];
+  
+  completedUnclaimed.forEach(task => {
+    task.isClaimed = true;
+    totalCoins += task.reward.coins;
+    totalExp += task.reward.experience;
+    claimedTasks.push({
+      id: task.id,
+      name: task.name,
+      reward: task.reward
+    });
+  });
+  
+  user.coins += totalCoins;
+  user.experience += totalExp;
+  
+  const leveledUp = checkLevelUp(user);
+  
+  res.json({
+    success: true,
+    data: {
+      claimedCount: claimedTasks.length,
+      totalCoins,
+      totalExp,
+      leveledUp,
+      user: {
+        coins: user.coins,
+        experience: user.experience,
+        level: user.level,
+        nextLevelExp: user.nextLevelExp
+      }
     }
   });
 });
@@ -2131,6 +2346,8 @@ app.post('/api/level/complete', (req, res) => {
   
   user.completedLevels = mockData.levels.filter(l => l.isCompleted).length;
   
+  const taskUpdated = updateTaskProgress(user, 'level_complete', 1);
+  
   const leveledUp = checkLevelUp(user);
   user.previousLevel = user.level;
   
@@ -2172,6 +2389,7 @@ app.post('/api/level/complete', (req, res) => {
       leveledUp,
       drops: appliedDrops,
       newAchievements,
+      taskUpdated,
       maxInventorySlots: getMaxInventorySlots(),
       difficulty: difficultyConfig.id,
       difficultyName: difficultyConfig.name,
@@ -2338,24 +2556,23 @@ const LEADERBOARD_CONFIG = {
   }
 };
 
-let leaderboardCache = {
-  levels: {
-    lastUpdate: null,
-    players: [],
-    myRank: null
-  },
-  level: {
-    lastUpdate: null,
-    players: [],
-    myRank: null
-  }
-};
+const CURRENT_USER_ID = 0;
+
+function getCurrentUserSnapshot() {
+  return {
+    ...mockData.user,
+    id: CURRENT_USER_ID
+  };
+}
 
 function getAllPlayersForLeaderboard() {
+  const currentUser = getCurrentUserSnapshot();
+  
   const allPlayers = [
-    { ...mockData.user, id: 0 },
-    ...mockPlayers
+    currentUser,
+    ...mockPlayers.filter(p => p.id !== CURRENT_USER_ID)
   ];
+  
   return allPlayers;
 }
 
@@ -2375,6 +2592,8 @@ function sortPlayersByType(players, type) {
 }
 
 function formatPlayerForLeaderboard(player, rank, type) {
+  const isCurrentUser = player.id === CURRENT_USER_ID;
+  
   return {
     rank,
     playerId: player.id,
@@ -2384,54 +2603,69 @@ function formatPlayerForLeaderboard(player, rank, type) {
     currentSkin: player.currentSkin || 'default',
     completedLevels: player.completedLevels,
     totalStars: player.totalStars,
-    isCurrentUser: player.id === 0,
+    isCurrentUser,
     score: type === 'levels' ? player.completedLevels : player.level
   };
 }
 
-function updateLeaderboard(type) {
+function calculateLeaderboard(type) {
   const config = LEADERBOARD_CONFIG.types[type];
-  if (!config) return;
+  if (!config) return null;
 
-  console.log(`[排行榜] 开始更新 ${config.name} 排行榜...`);
+  console.log(`[排行榜] 正在计算 ${config.name} 排行榜...`);
+  
+  const currentUser = getCurrentUserSnapshot();
+  console.log(`[排行榜] 当前用户数据: nickname=${currentUser.nickname}, level=${currentUser.level}, completedLevels=${currentUser.completedLevels}`);
 
   const allPlayers = getAllPlayersForLeaderboard();
-  const sortedPlayers = sortPlayersByType(allPlayers, type);
+  console.log(`[排行榜] 玩家总数: ${allPlayers.length}`);
 
+  const sortedPlayers = sortPlayersByType([...allPlayers], type);
+  
   const topPlayers = sortedPlayers.slice(0, LEADERBOARD_CONFIG.maxDisplay);
   
   let myRank = null;
+  let myData = null;
+  
   for (let i = 0; i < sortedPlayers.length; i++) {
-    if (sortedPlayers[i].id === 0) {
+    if (sortedPlayers[i].id === CURRENT_USER_ID) {
       myRank = i + 1;
+      myData = formatPlayerForLeaderboard(sortedPlayers[i], myRank, type);
+      console.log(`[排行榜] 当前用户排名: ${myRank}`);
       break;
     }
   }
+  
+  if (!myRank) {
+    console.log(`[排行榜] 警告: 未能找到当前用户在排行榜中的位置`);
+  }
 
-  leaderboardCache[type] = {
+  const result = {
     lastUpdate: new Date().toISOString(),
     players: topPlayers.map((player, index) => 
       formatPlayerForLeaderboard(player, index + 1, type)
     ),
     myRank,
-    myData: myRank ? formatPlayerForLeaderboard(mockData.user, myRank, type) : null,
+    myData,
     totalPlayers: sortedPlayers.length
   };
 
-  console.log(`[排行榜] ${config.name} 排行榜更新完成，共 ${sortedPlayers.length} 名玩家，当前玩家排名: ${myRank}`);
+  console.log(`[排行榜] ${config.name} 排行榜计算完成，当前用户排名: ${myRank}`);
+  
+  return result;
+}
+
+function updateLeaderboard(type) {
+  return calculateLeaderboard(type);
 }
 
 function updateAllLeaderboards() {
+  const results = {};
   Object.keys(LEADERBOARD_CONFIG.types).forEach(type => {
-    updateLeaderboard(type);
+    results[type] = updateLeaderboard(type);
   });
+  return results;
 }
-
-updateAllLeaderboards();
-
-const leaderboardInterval = setInterval(() => {
-  updateAllLeaderboards();
-}, LEADERBOARD_CONFIG.updateInterval);
 
 app.get('/api/leaderboard', (req, res) => {
   const { type = 'levels' } = req.query;
@@ -2444,7 +2678,15 @@ app.get('/api/leaderboard', (req, res) => {
     });
   }
 
-  const cache = leaderboardCache[type];
+  console.log(`[排行榜] API请求: type=${type}`);
+  const leaderboardData = calculateLeaderboard(type);
+
+  if (!leaderboardData) {
+    return res.status(500).json({
+      success: false,
+      message: '排行榜计算失败'
+    });
+  }
 
   res.json({
     success: true,
@@ -2453,11 +2695,61 @@ app.get('/api/leaderboard', (req, res) => {
       typeName: LEADERBOARD_CONFIG.types[type].name,
       typeIcon: LEADERBOARD_CONFIG.types[type].icon,
       maxDisplay: LEADERBOARD_CONFIG.maxDisplay,
-      lastUpdate: cache.lastUpdate,
-      players: cache.players,
-      myRank: cache.myRank,
-      myData: cache.myData,
-      totalPlayers: cache.totalPlayers
+      lastUpdate: leaderboardData.lastUpdate,
+      players: leaderboardData.players,
+      myRank: leaderboardData.myRank,
+      myData: leaderboardData.myData,
+      totalPlayers: leaderboardData.totalPlayers,
+      currentUserSnapshot: {
+        nickname: mockData.user.nickname,
+        level: mockData.user.level,
+        completedLevels: mockData.user.completedLevels,
+        totalStars: mockData.user.totalStars
+      }
+    }
+  });
+});
+
+app.post('/api/leaderboard/refresh', (req, res) => {
+  const { type = 'levels' } = req.query;
+  
+  if (!LEADERBOARD_CONFIG.types[type]) {
+    return res.status(400).json({
+      success: false,
+      message: `无效的排行榜类型: ${type}`,
+      validTypes: Object.keys(LEADERBOARD_CONFIG.types)
+    });
+  }
+
+  console.log(`[排行榜] 手动刷新请求: type=${type}`);
+  const leaderboardData = calculateLeaderboard(type);
+
+  if (!leaderboardData) {
+    return res.status(500).json({
+      success: false,
+      message: '排行榜刷新失败'
+    });
+  }
+
+  res.json({
+    success: true,
+    data: {
+      type,
+      typeName: LEADERBOARD_CONFIG.types[type].name,
+      typeIcon: LEADERBOARD_CONFIG.types[type].icon,
+      maxDisplay: LEADERBOARD_CONFIG.maxDisplay,
+      lastUpdate: leaderboardData.lastUpdate,
+      players: leaderboardData.players,
+      myRank: leaderboardData.myRank,
+      myData: leaderboardData.myData,
+      totalPlayers: leaderboardData.totalPlayers,
+      refreshedAt: new Date().toISOString(),
+      currentUserSnapshot: {
+        nickname: mockData.user.nickname,
+        level: mockData.user.level,
+        completedLevels: mockData.user.completedLevels,
+        totalStars: mockData.user.totalStars
+      }
     }
   });
 });

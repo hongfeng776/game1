@@ -1,0 +1,213 @@
+.start-page {
+  padding: 20px 0;
+}
+
+.quick-play-section {
+  display: flex;
+  justify-content: center;
+  margin: 30px 0;
+}
+
+.quick-play-card {
+  text-align: center;
+  padding: 40px 60px;
+  max-width: 400px;
+}
+
+.quick-play-icon {
+  font-size: 4rem;
+  margin-bottom: 20px;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+.quick-play-card h2 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.quick-play-card p {
+  color: #666;
+  margin-bottom: 25px;
+}
+
+.progress-section {
+  max-width: 800px;
+  margin: 30px auto;
+}
+
+.progress-section h3 {
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.progress-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.progress-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 15px;
+}
+
+.progress-icon {
+  font-size: 2rem;
+}
+
+.progress-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #FF6B6B;
+}
+
+.progress-label {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.game-modes {
+  margin: 40px 0;
+}
+
+.section-title {
+  text-align: center;
+  color: white;
+  font-size: 1.8rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  margin-bottom: 25px;
+}
+
+.modes-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.mode-card {
+  text-align: center;
+  transition: transform 0.3s ease;
+}
+
+.mode-card:hover {
+  transform: translateY(-5px);
+}
+
+.mode-icon {
+  font-size: 3rem;
+  margin-bottom: 15px;
+}
+
+.mode-card h3 {
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.mode-card p {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.recent-levels {
+  max-width: 600px;
+  margin: 40px auto;
+}
+
+.recent-levels h3 {
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.recent-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 15px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+  border-radius: 12px;
+}
+
+.recent-level-id {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}
+
+.recent-level-name {
+  flex: 1;
+  color: #333;
+  font-weight: 500;
+}
+
+.recent-stars {
+  display: flex;
+  gap: 2px;
+}
+
+.star {
+  opacity: 0.3;
+}
+
+.star.filled {
+  opacity: 1;
+}
+
+.no-progress {
+  text-align: center;
+  color: #999;
+  padding: 20px;
+}
+
+@media (max-width: 768px) {
+  .quick-play-card {
+    width: 100%;
+    padding: 30px 20px;
+    margin: 0 20px;
+  }
+  
+  .progress-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  
+  .progress-item {
+    padding: 12px;
+  }
+  
+  .modes-grid {
+    grid-template-columns: 1fr;
+    padding: 0 20px;
+    gap: 15px;
+  }
+  
+  .recent-levels {
+    margin: 20px;
+  }
+  
+  .section-title {
+    font-size: 1.4rem;
+  }
+}

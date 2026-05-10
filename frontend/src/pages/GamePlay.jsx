@@ -124,6 +124,13 @@ function GamePlay() {
           updateUser(rewardData.user);
         }
         
+        if (rewardData.reward?.failedItems?.length > 0) {
+          const failedNames = rewardData.reward.failedItems
+            .map(item => `${item.item?.name || item.itemId} ×${item.quantity}`)
+            .join('、');
+          showNotificationMsg(`部分道具领取失败：${failedNames}`, 'warning');
+        }
+        
         setMapData(prevMapData => {
           if (!prevMapData || !prevMapData.eggs) return prevMapData;
           return {

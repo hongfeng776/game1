@@ -3503,13 +3503,12 @@ app.post('/api/level/egg/trigger', (req, res) => {
     });
   }
   
-  user.triggeredEggs.push(eggId);
-  
   const reward = egg.reward;
   let totalCoins = 0;
   const earnedItems = [];
+  const failedItems = [];
   
-  if (reward.coins) {
+  if (reward.coins !== undefined && reward.coins > 0) {
     totalCoins = reward.coins;
     user.coins += reward.coins;
   }
@@ -3523,10 +3522,18 @@ app.post('/api/level/egg/trigger', (req, res) => {
           item: getItem(item.itemId),
           quantity: item.quantity
         });
+      } else {
+        failedItems.push({
+          itemId: item.itemId,
+          item: getItem(item.itemId),
+          quantity: item.quantity,
+          reason: result.message || '添加失败'
+        });
       }
     });
   }
   
+  user.triggeredEggs.push(eggId);
   saveGameData(req.deviceId);
   
   res.json({
@@ -3535,7 +3542,8 @@ app.post('/api/level/egg/trigger', (req, res) => {
       egg: egg,
       reward: {
         coins: totalCoins,
-        items: earnedItems
+        items: earnedItems,
+        failedItems: failedItems
       },
       user: { ...user }
     }

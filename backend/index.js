@@ -6,11 +6,106 @@ const crypto = require('crypto');
 
 const app = express();
 const SAVE_FILE = path.join(__dirname, 'game_save.json');
+const SAVE_DIR = path.join(__dirname, 'saves');
 const BACKUP_DIR = path.join(__dirname, 'backups');
 const MAX_BACKUPS = 10;
 
+if (!fs.existsSync(SAVE_DIR)) {
+  fs.mkdirSync(SAVE_DIR, { recursive: true });
+}
+
 if (!fs.existsSync(BACKUP_DIR)) {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
+}
+
+const allDeviceData = new Map();
+
+function getSaveFilePath(deviceId) {
+  if (!deviceId) return SAVE_FILE;
+  const safeDeviceId = deviceId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return path.join(SAVE_DIR, `${safeDeviceId}.json`);
+}
+
+function getDeviceBackupDir(deviceId) {
+  if (!deviceId) return BACKUP_DIR;
+  const safeDeviceId = deviceId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return path.join(BACKUP_DIR, safeDeviceId);
+}
+
+function getDeviceId(req) {
+  return req.body?.deviceId || req.query?.deviceId || req.headers?.deviceid;
+}
+
+function getCurrentSaveData(deviceId) {
+  if (deviceId && allDeviceData.has(deviceId)) {
+    return allDeviceData.get(deviceId);
+  }
+  return mockData;
+}
+
+function setCurrentSaveData(deviceId, data) {
+  if (deviceId) {
+    allDeviceData.set(deviceId, data);
+  }
+}
+
+function initDeviceData(deviceId) {
+  if (!deviceId) return;
+  
+  const savePath = getSaveFilePath(deviceId);
+  const backupDir = getDeviceBackupDir(deviceId);
+  
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir, { recursive: true });
+  }
+  
+  if (!allDeviceData.has(deviceId)) {
+    const defaultLevels = [];
+    Object.keys(LEVEL_MAPS).forEach(levelId => {
+      const id = parseInt(levelId);
+      const map = LEVEL_MAPS[id];
+      const chapter = CHAPTERS.find(c => c.levels.includes(id));
+      defaultLevels.push({
+        id: id,
+        chapterId: chapter ? chapter.id : 1,
+        name: map.name,
+        stars: 0,
+        isCompleted: false,
+        isUnlocked: id === 1,
+        bestTime: null
+      });
+    });
+    
+    const deviceData = {
+      user: JSON.parse(JSON.stringify(mockData.user)),
+      levels: defaultLevels,
+      chapters: JSON.parse(JSON.stringify(CHAPTERS)),
+      settings: JSON.parse(JSON.stringify(mockData.settings))
+    };
+    
+    if (fs.existsSync(savePath)) {
+      try {
+        const data = fs.readFileSync(savePath, 'utf8');
+        const saveData = JSON.parse(data);
+        
+        if (saveData.user) deviceData.user = saveData.user;
+        if (saveData.levels) {
+          saveData.levels.forEach(savedLevel => {
+            const existingLevel = deviceData.levels.find(l => l.id === savedLevel.id);
+            if (existingLevel) {
+              Object.assign(existingLevel, savedLevel);
+            }
+          });
+        }
+        if (saveData.settings) deviceData.settings = saveData.settings;
+        console.log(`[存档] 已加载设备 ${deviceId} 的存档数据`);
+      } catch (error) {
+        console.error(`[存档] 加载设备 ${deviceId} 存档失败:`, error);
+      }
+    }
+    
+    allDeviceData.set(deviceId, deviceData);
+  }
 }
 
 function generateChecksum(data) {
@@ -49,18 +144,25 @@ function validateSaveData(saveData) {
   return { valid: true };
 }
 
-function saveGameData() {
+function saveGameData(deviceId) {
   try {
+    const dataToSave = getCurrentSaveData(deviceId);
     const saveData = {
-      user: mockData.user,
-      levels: mockData.levels,
-      settings: mockData.settings,
+      user: dataToSave.user,
+      levels: dataToSave.levels,
+      settings: dataToSave.settings,
       savedAt: new Date().toISOString()
     };
     saveData.checksum = generateChecksum(saveData);
     
-    fs.writeFileSync(SAVE_FILE, JSON.stringify(saveData, null, 2));
-    console.log('[存档] 游戏数据已保存');
+    const savePath = getSaveFilePath(deviceId);
+    fs.writeFileSync(savePath, JSON.stringify(saveData, null, 2));
+    
+    if (deviceId) {
+      console.log(`[存档] 设备 ${deviceId} 的游戏数据已保存`);
+    } else {
+      console.log('[存档] 游戏数据已保存');
+    }
     return true;
   } catch (error) {
     console.error('[存档] 保存失败:', error);
@@ -68,10 +170,12 @@ function saveGameData() {
   }
 }
 
-function loadGameData() {
+function loadGameData(deviceId) {
   try {
-    if (fs.existsSync(SAVE_FILE)) {
-      const data = fs.readFileSync(SAVE_FILE, 'utf8');
+    const savePath = getSaveFilePath(deviceId);
+    
+    if (fs.existsSync(savePath)) {
+      const data = fs.readFileSync(savePath, 'utf8');
       const saveData = JSON.parse(data);
       
       const validation = validateSaveData(saveData);
@@ -80,17 +184,20 @@ function loadGameData() {
         return { success: false, error: validation.error, corrupted: true };
       }
       
-      if (saveData.user) mockData.user = saveData.user;
+      initDeviceData(deviceId);
+      const deviceData = allDeviceData.get(deviceId);
+      if (saveData.user) deviceData.user = saveData.user;
       if (saveData.levels) {
         saveData.levels.forEach(savedLevel => {
-          const existingLevel = mockData.levels.find(l => l.id === savedLevel.id);
+          const existingLevel = deviceData.levels.find(l => l.id === savedLevel.id);
           if (existingLevel) {
             Object.assign(existingLevel, savedLevel);
           }
         });
       }
-      if (saveData.settings) mockData.settings = saveData.settings;
-      console.log('[存档] 游戏数据已加载，保存时间:', saveData.savedAt);
+      if (saveData.settings) deviceData.settings = saveData.settings;
+      console.log(`[存档] 设备 ${deviceId} 的游戏数据已加载，保存时间:`, saveData.savedAt);
+      
       return { success: true, saveData };
     }
     return { success: false, error: '存档文件不存在' };
@@ -100,14 +207,15 @@ function loadGameData() {
   }
 }
 
-function getBackupList() {
+function getBackupList(deviceId) {
   try {
-    if (!fs.existsSync(BACKUP_DIR)) return [];
+    const backupDir = getDeviceBackupDir(deviceId);
+    if (!fs.existsSync(backupDir)) return [];
     
-    const files = fs.readdirSync(BACKUP_DIR)
+    const files = fs.readdirSync(backupDir)
       .filter(file => file.endsWith('.json'))
       .map(file => {
-        const filePath = path.join(BACKUP_DIR, file);
+        const filePath = path.join(backupDir, file);
         const stats = fs.statSync(filePath);
         let backupInfo = {
           filename: file,
@@ -136,28 +244,38 @@ function getBackupList() {
   }
 }
 
-function createBackup(name) {
+function createBackup(name, deviceId) {
   try {
+    const dataToSave = getCurrentSaveData(deviceId);
     const saveData = {
-      user: mockData.user,
-      levels: mockData.levels,
-      settings: mockData.settings,
+      user: dataToSave.user,
+      levels: dataToSave.levels,
+      settings: dataToSave.settings,
       savedAt: new Date().toISOString()
     };
     saveData.checksum = generateChecksum(saveData);
     
+    const backupDir = getDeviceBackupDir(deviceId);
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+    
     const timestamp = Date.now();
     const backupName = name ? `${name}_${timestamp}.json` : `backup_${timestamp}.json`;
-    const backupPath = path.join(BACKUP_DIR, backupName);
+    const backupPath = path.join(backupDir, backupName);
     
     fs.writeFileSync(backupPath, JSON.stringify(saveData, null, 2));
-    console.log('[备份] 备份已创建:', backupName);
+    if (deviceId) {
+      console.log(`[备份] 设备 ${deviceId} 的备份已创建:`, backupName);
+    } else {
+      console.log('[备份] 备份已创建:', backupName);
+    }
     
-    const backups = getBackupList();
+    const backups = getBackupList(deviceId);
     if (backups.length > MAX_BACKUPS) {
       const toDelete = backups.slice(MAX_BACKUPS);
       toDelete.forEach(backup => {
-        const filePath = path.join(BACKUP_DIR, backup.filename);
+        const filePath = path.join(backupDir, backup.filename);
         fs.unlinkSync(filePath);
         console.log('[备份] 自动删除旧备份:', backup.filename);
       });
@@ -170,9 +288,10 @@ function createBackup(name) {
   }
 }
 
-function restoreBackup(filename) {
+function restoreBackup(filename, deviceId) {
   try {
-    const backupPath = path.join(BACKUP_DIR, filename);
+    const backupDir = getDeviceBackupDir(deviceId);
+    const backupPath = path.join(backupDir, filename);
     if (!fs.existsSync(backupPath)) {
       return { success: false, error: '备份文件不存在' };
     }
@@ -185,19 +304,22 @@ function restoreBackup(filename) {
       return { success: false, error: validation.error, corrupted: true };
     }
     
-    if (saveData.user) mockData.user = saveData.user;
+    initDeviceData(deviceId);
+    const deviceData = allDeviceData.get(deviceId);
+    if (saveData.user) deviceData.user = saveData.user;
     if (saveData.levels) {
       saveData.levels.forEach(savedLevel => {
-        const existingLevel = mockData.levels.find(l => l.id === savedLevel.id);
+        const existingLevel = deviceData.levels.find(l => l.id === savedLevel.id);
         if (existingLevel) {
           Object.assign(existingLevel, savedLevel);
         }
       });
     }
-    if (saveData.settings) mockData.settings = saveData.settings;
+    if (saveData.settings) deviceData.settings = saveData.settings;
     
-    saveGameData();
-    console.log('[备份] 已从备份恢复:', filename);
+    saveGameData(deviceId);
+    console.log(`[备份] 设备 ${deviceId} 已从备份恢复:`, filename);
+    
     return { success: true, saveData };
   } catch (error) {
     console.error('[备份] 恢复失败:', error);
@@ -205,9 +327,10 @@ function restoreBackup(filename) {
   }
 }
 
-function deleteBackup(filename) {
+function deleteBackup(filename, deviceId) {
   try {
-    const backupPath = path.join(BACKUP_DIR, filename);
+    const backupDir = getDeviceBackupDir(deviceId);
+    const backupPath = path.join(backupDir, filename);
     if (!fs.existsSync(backupPath)) {
       return { success: false, error: '备份文件不存在' };
     }
@@ -221,13 +344,14 @@ function deleteBackup(filename) {
   }
 }
 
-function checkSaveIntegrity() {
+function checkSaveIntegrity(deviceId) {
   try {
-    if (!fs.existsSync(SAVE_FILE)) {
+    const savePath = getSaveFilePath(deviceId);
+    if (!fs.existsSync(savePath)) {
       return { valid: true, exists: false };
     }
     
-    const data = fs.readFileSync(SAVE_FILE, 'utf8');
+    const data = fs.readFileSync(savePath, 'utf8');
     const saveData = JSON.parse(data);
     const validation = validateSaveData(saveData);
     
@@ -255,6 +379,15 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.use((req, res, next) => {
+  const deviceId = getDeviceId(req);
+  if (deviceId) {
+    initDeviceData(deviceId);
+    req.deviceId = deviceId;
+  }
+  next();
+});
 
 const CHAPTERS = [
   {
@@ -2068,11 +2201,13 @@ function calculateStars(timeUsed, timeLimit, hpLeft, maxHp) {
 }
 
 app.get('/api/user', (req, res) => {
-  res.json({ success: true, data: mockData.user });
+  const currentData = getCurrentSaveData(req.deviceId);
+  res.json({ success: true, data: currentData.user });
 });
 
 app.get('/api/hero', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const heroInfo = {
     nickname: user.nickname,
     level: user.level,
@@ -2104,7 +2239,8 @@ app.get('/api/hero', (req, res) => {
 
 app.post('/api/hero/upgrade', (req, res) => {
   const { attributeType } = req.body;
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const result = upgradeAttribute(user, attributeType);
   
   if (!result.success) {
@@ -2127,12 +2263,13 @@ app.post('/api/hero/upgrade', (req, res) => {
     }
   };
   
-  saveGameData();
+  saveGameData(req.deviceId);
   res.json({ success: true, data: updatedInfo });
 });
 
 app.get('/api/inventory', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const inventoryList = Object.keys(user.inventory).map(itemId => ({
     itemId,
     item: getItem(itemId),
@@ -2160,7 +2297,8 @@ app.get('/api/items', (req, res) => {
 
 app.post('/api/inventory/add', (req, res) => {
   const { itemId, quantity = 1 } = req.body;
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   
   const result = addItemToInventory(user, itemId, quantity);
   
@@ -2173,7 +2311,8 @@ app.post('/api/inventory/add', (req, res) => {
 
 app.post('/api/inventory/use', (req, res) => {
   const { itemId, quantity = 1 } = req.body;
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   
   const item = getItem(itemId);
   if (!item) {
@@ -2191,7 +2330,7 @@ app.post('/api/inventory/use', (req, res) => {
   
   const taskUpdated = updateTaskProgress(user, 'item_use', quantity);
   
-  saveGameData();
+  saveGameData(req.deviceId);
   res.json({
     success: true,
     data: {
@@ -2206,7 +2345,8 @@ app.post('/api/inventory/use', (req, res) => {
 
 app.post('/api/inventory/carry', (req, res) => {
   const { itemIds } = req.body;
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   
   if (!Array.isArray(itemIds)) {
     return res.status(400).json({ success: false, message: '参数错误' });
@@ -2239,7 +2379,8 @@ app.post('/api/inventory/carry', (req, res) => {
 });
 
 app.get('/api/inventory/carry', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   
   res.json({
     success: true,
@@ -2251,15 +2392,17 @@ app.get('/api/inventory/carry', (req, res) => {
 });
 
 app.post('/api/user/update', (req, res) => {
-  Object.assign(mockData.user, req.body);
-  const leveledUp = checkLevelUp(mockData.user);
-  saveGameData();
-  res.json({ success: true, data: mockData.user, leveledUp });
+  const currentData = getCurrentSaveData(req.deviceId);
+  Object.assign(currentData.user, req.body);
+  const leveledUp = checkLevelUp(currentData.user);
+  saveGameData(req.deviceId);
+  res.json({ success: true, data: currentData.user, leveledUp });
 });
 
 app.get('/api/chapters', (req, res) => {
-  const chaptersWithProgress = mockData.chapters.map(chapter => {
-    const chapterLevels = mockData.levels.filter(l => chapter.levels.includes(l.id));
+  const currentData = getCurrentSaveData(req.deviceId);
+  const chaptersWithProgress = currentData.chapters.map(chapter => {
+    const chapterLevels = currentData.levels.filter(l => chapter.levels.includes(l.id));
     const completedCount = chapterLevels.filter(l => l.isCompleted).length;
     const totalStars = chapterLevels.reduce((sum, l) => sum + l.stars, 0);
     const maxStars = chapterLevels.length * 3;
@@ -2280,7 +2423,8 @@ app.get('/api/chapters', (req, res) => {
 
 app.get('/api/levels', (req, res) => {
   const chapterId = req.query.chapterId ? parseInt(req.query.chapterId) : null;
-  let levels = mockData.levels;
+  const currentData = getCurrentSaveData(req.deviceId);
+  let levels = currentData.levels;
   
   if (chapterId) {
     levels = levels.filter(l => l.chapterId === chapterId);
@@ -2318,13 +2462,15 @@ app.get('/api/level/map/:levelId', (req, res) => {
 });
 
 app.get('/api/settings', (req, res) => {
-  res.json({ success: true, data: mockData.settings });
+  const currentData = getCurrentSaveData(req.deviceId);
+  res.json({ success: true, data: currentData.settings });
 });
 
 app.post('/api/settings', (req, res) => {
-  Object.assign(mockData.settings, req.body);
-  saveGameData();
-  res.json({ success: true, data: mockData.settings });
+  const currentData = getCurrentSaveData(req.deviceId);
+  Object.assign(currentData.settings, req.body);
+  saveGameData(req.deviceId);
+  res.json({ success: true, data: currentData.settings });
 });
 
 function getCurrentMonth() {
@@ -2386,7 +2532,8 @@ function getSupplementalInfo(user) {
 }
 
 app.get('/api/signin/status', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const today = new Date().toDateString();
   const canSignIn = user.lastSignInDate !== today;
   
@@ -2454,7 +2601,8 @@ function getNextMonthRewards() {
 }
 
 app.post('/api/signin', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const today = new Date().toDateString();
   
   if (user.lastSignInDate === today) {
@@ -2495,7 +2643,7 @@ app.post('/api/signin', (req, res) => {
     }
   });
   
-  saveGameData();
+  saveGameData(req.deviceId);
   res.json({
     success: true,
     data: {
@@ -2510,7 +2658,8 @@ app.post('/api/signin', (req, res) => {
 });
 
 app.post('/api/signin/supplemental', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const today = new Date().toDateString();
   
   if (!canSupplementalSignIn(user)) {
@@ -2553,7 +2702,7 @@ app.post('/api/signin/supplemental', (req, res) => {
     }
   });
   
-  saveGameData();
+  saveGameData(req.deviceId);
   res.json({
     success: true,
     data: {
@@ -2571,7 +2720,8 @@ app.post('/api/signin/supplemental', (req, res) => {
 });
 
 app.get('/api/daily-tasks', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const tasks = checkAndResetDailyTasks(user);
   
   const completedCount = tasks.filter(t => t.isCompleted).length;
@@ -2609,7 +2759,8 @@ app.get('/api/daily-tasks', (req, res) => {
 });
 
 app.post('/api/daily-tasks/refresh', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   checkAndResetDailyTasks(user);
   
   if (user.dailyTaskRefreshCount <= 0) {
@@ -2711,7 +2862,8 @@ app.post('/api/daily-tasks/refresh', (req, res) => {
 
 app.post('/api/daily-tasks/claim', (req, res) => {
   const { taskId } = req.body;
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const tasks = checkAndResetDailyTasks(user);
   
   const task = tasks.find(t => t.id === taskId);
@@ -2734,7 +2886,7 @@ app.post('/api/daily-tasks/claim', (req, res) => {
   
   const leveledUp = checkLevelUp(user);
   
-  saveGameData();
+  saveGameData(req.deviceId);
   res.json({
     success: true,
     data: {
@@ -2752,7 +2904,8 @@ app.post('/api/daily-tasks/claim', (req, res) => {
 });
 
 app.post('/api/daily-tasks/claim-all', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const tasks = checkAndResetDailyTasks(user);
   
   const completedUnclaimed = tasks.filter(t => t.isCompleted && !t.isClaimed);
@@ -2781,7 +2934,7 @@ app.post('/api/daily-tasks/claim-all', (req, res) => {
   
   const leveledUp = checkLevelUp(user);
   
-  saveGameData();
+  saveGameData(req.deviceId);
   res.json({
     success: true,
     data: {
@@ -2800,8 +2953,9 @@ app.post('/api/daily-tasks/claim-all', (req, res) => {
 });
 
 app.get('/api/achievements', (req, res) => {
-  const user = mockData.user;
-  const levels = mockData.levels;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
+  const levels = currentData.levels;
   
   const achievementsList = Object.values(ACHIEVEMENTS).map(achievement => ({
     ...achievement,
@@ -2847,8 +3001,9 @@ function checkAchievements(user, levels) {
 }
 
 app.post('/api/level/complete', (req, res) => {
+  const currentData = getCurrentSaveData(req.deviceId);
   const { levelId, timeUsed, difficulty } = req.body;
-  const level = mockData.levels.find(l => l.id === levelId);
+  const level = currentData.levels.find(l => l.id === levelId);
   const map = LEVEL_MAPS[levelId];
   
   if (!level || !map) {
@@ -2859,7 +3014,7 @@ app.post('/api/level/complete', (req, res) => {
   const adjustedCoins = Math.floor(map.coins * difficultyConfig.coinMultiplier);
   const adjustedExp = Math.floor(map.experience * difficultyConfig.coinMultiplier);
   
-  const user = mockData.user;
+  const user = currentData.user;
   const stars = calculateStars(timeUsed, map.timeLimit, user.hp, user.maxHp);
   const firstTime = !level.isCompleted;
   
@@ -2871,12 +3026,12 @@ app.post('/api/level/complete', (req, res) => {
   }
   
   const nextLevelId = levelId + 1;
-  const nextLevel = mockData.levels.find(l => l.id === nextLevelId);
+  const nextLevel = currentData.levels.find(l => l.id === nextLevelId);
   if (nextLevel) {
     nextLevel.isUnlocked = true;
   }
   
-  const nextChapter = mockData.chapters.find(c => 
+  const nextChapter = currentData.chapters.find(c => 
     !c.unlocked && c.levels.includes(nextLevelId)
   );
   if (nextChapter) {
@@ -2895,7 +3050,7 @@ app.post('/api/level/complete', (req, res) => {
     user.coins += adjustedCoins;
   }
   
-  user.completedLevels = mockData.levels.filter(l => l.isCompleted).length;
+  user.completedLevels = currentData.levels.filter(l => l.isCompleted).length;
   
   const taskUpdated = updateTaskProgress(user, 'level_complete', 1);
   
@@ -2907,7 +3062,7 @@ app.post('/api/level/complete', (req, res) => {
   const drops = generateRandomDrops(levelId);
   const appliedDrops = applyDropsToInventory(user, drops);
   
-  const newAchievements = checkAchievements(user, mockData.levels);
+  const newAchievements = checkAchievements(user, currentData.levels);
   
   let firstHardClearReward = null;
   if (difficulty === 'hard' && !user.hasFirstHardClearReward) {
@@ -2930,7 +3085,7 @@ app.post('/api/level/complete', (req, res) => {
     }
   }
   
-  saveGameData();
+  saveGameData(req.deviceId);
   
   res.json({ 
     success: true, 
@@ -2950,17 +3105,18 @@ app.post('/api/level/complete', (req, res) => {
       monsterStrength: difficultyConfig.monsterStrength,
       firstHardClearReward,
       user: { ...user },
-      levels: mockData.levels
+      levels: currentData.levels
     }
   });
 });
 
 app.post('/api/level/fail', (req, res) => {
   const { levelId } = req.body;
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   
   user.hp = user.maxHp;
-  saveGameData();
+  saveGameData(req.deviceId);
   
   res.json({ 
     success: true, 
@@ -2971,7 +3127,8 @@ app.post('/api/level/fail', (req, res) => {
 });
 
 app.get('/api/skins', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const skinsList = Object.values(SKINS).map(skin => {
     const unlocked = isSkinUnlocked(user, skin.id);
     const isWearing = user.currentSkin === skin.id;
@@ -3012,7 +3169,8 @@ app.get('/api/skins', (req, res) => {
 
 app.post('/api/skins/buy', (req, res) => {
   const { skinId } = req.body;
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const skin = getSkin(skinId);
   
   if (!skin) {
@@ -3040,7 +3198,7 @@ app.post('/api/skins/buy', (req, res) => {
   user.coins -= skin.price;
   if (!user.unlockedSkins) user.unlockedSkins = [];
   user.unlockedSkins.push(skinId);
-  saveGameData();
+  saveGameData(req.deviceId);
   
   res.json({
     success: true,
@@ -3055,7 +3213,8 @@ app.post('/api/skins/buy', (req, res) => {
 
 app.post('/api/skins/wear', (req, res) => {
   const { skinId } = req.body;
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const skin = getSkin(skinId);
   
   if (!skin) {
@@ -3068,7 +3227,7 @@ app.post('/api/skins/wear', (req, res) => {
   }
   
   user.currentSkin = skinId;
-  saveGameData();
+  saveGameData(req.deviceId);
   
   res.json({
     success: true,
@@ -3081,7 +3240,8 @@ app.post('/api/skins/wear', (req, res) => {
 });
 
 app.get('/api/skins/current', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   const skin = getSkin(user.currentSkin);
   
   res.json({
@@ -3114,15 +3274,16 @@ const LEADERBOARD_CONFIG = {
 
 const CURRENT_USER_ID = 0;
 
-function getCurrentUserSnapshot() {
+function getCurrentUserSnapshot(deviceId) {
+  const currentData = getCurrentSaveData(deviceId);
   return {
-    ...mockData.user,
+    ...currentData.user,
     id: CURRENT_USER_ID
   };
 }
 
-function getAllPlayersForLeaderboard() {
-  const currentUser = getCurrentUserSnapshot();
+function getAllPlayersForLeaderboard(deviceId) {
+  const currentUser = getCurrentUserSnapshot(deviceId);
   
   const allPlayers = [
     currentUser,
@@ -3164,16 +3325,16 @@ function formatPlayerForLeaderboard(player, rank, type) {
   };
 }
 
-function calculateLeaderboard(type) {
+function calculateLeaderboard(type, deviceId) {
   const config = LEADERBOARD_CONFIG.types[type];
   if (!config) return null;
 
   console.log(`[排行榜] 正在计算 ${config.name} 排行榜...`);
   
-  const currentUser = getCurrentUserSnapshot();
+  const currentUser = getCurrentUserSnapshot(deviceId);
   console.log(`[排行榜] 当前用户数据: nickname=${currentUser.nickname}, level=${currentUser.level}, completedLevels=${currentUser.completedLevels}`);
 
-  const allPlayers = getAllPlayersForLeaderboard();
+  const allPlayers = getAllPlayersForLeaderboard(deviceId);
   console.log(`[排行榜] 玩家总数: ${allPlayers.length}`);
 
   const sortedPlayers = sortPlayersByType([...allPlayers], type);
@@ -3211,14 +3372,14 @@ function calculateLeaderboard(type) {
   return result;
 }
 
-function updateLeaderboard(type) {
-  return calculateLeaderboard(type);
+function updateLeaderboard(type, deviceId) {
+  return calculateLeaderboard(type, deviceId);
 }
 
-function updateAllLeaderboards() {
+function updateAllLeaderboards(deviceId) {
   const results = {};
   Object.keys(LEADERBOARD_CONFIG.types).forEach(type => {
-    results[type] = updateLeaderboard(type);
+    results[type] = updateLeaderboard(type, deviceId);
   });
   return results;
 }
@@ -3235,7 +3396,8 @@ app.get('/api/leaderboard', (req, res) => {
   }
 
   console.log(`[排行榜] API请求: type=${type}`);
-  const leaderboardData = calculateLeaderboard(type);
+  const currentData = getCurrentSaveData(req.deviceId);
+  const leaderboardData = calculateLeaderboard(type, req.deviceId);
 
   if (!leaderboardData) {
     return res.status(500).json({
@@ -3257,10 +3419,10 @@ app.get('/api/leaderboard', (req, res) => {
       myData: leaderboardData.myData,
       totalPlayers: leaderboardData.totalPlayers,
       currentUserSnapshot: {
-        nickname: mockData.user.nickname,
-        level: mockData.user.level,
-        completedLevels: mockData.user.completedLevels,
-        totalStars: mockData.user.totalStars
+        nickname: currentData.user.nickname,
+        level: currentData.user.level,
+        completedLevels: currentData.user.completedLevels,
+        totalStars: currentData.user.totalStars
       }
     }
   });
@@ -3278,7 +3440,8 @@ app.post('/api/leaderboard/refresh', (req, res) => {
   }
 
   console.log(`[排行榜] 手动刷新请求: type=${type}`);
-  const leaderboardData = calculateLeaderboard(type);
+  const currentData = getCurrentSaveData(req.deviceId);
+  const leaderboardData = calculateLeaderboard(type, req.deviceId);
 
   if (!leaderboardData) {
     return res.status(500).json({
@@ -3301,10 +3464,10 @@ app.post('/api/leaderboard/refresh', (req, res) => {
       totalPlayers: leaderboardData.totalPlayers,
       refreshedAt: new Date().toISOString(),
       currentUserSnapshot: {
-        nickname: mockData.user.nickname,
-        level: mockData.user.level,
-        completedLevels: mockData.user.completedLevels,
-        totalStars: mockData.user.totalStars
+        nickname: currentData.user.nickname,
+        level: currentData.user.level,
+        completedLevels: currentData.user.completedLevels,
+        totalStars: currentData.user.totalStars
       }
     }
   });
@@ -3437,7 +3600,8 @@ function getEndlessMilestoneReward(levelIndex) {
 }
 
 app.get('/api/endless/status', (req, res) => {
-  const user = mockData.user;
+  const currentData = getCurrentSaveData(req.deviceId);
+  const user = currentData.user;
   
   res.json({
     success: true,
@@ -3524,8 +3688,9 @@ app.get('/api/endless/map/:levelIndex', (req, res) => {
 });
 
 app.post('/api/endless/complete', (req, res) => {
+  const currentData = getCurrentSaveData(req.deviceId);
   const { levelIndex, timeUsed, isPerfect } = req.body;
-  const user = mockData.user;
+  const user = currentData.user;
   
   if (!levelIndex || levelIndex < 1) {
     return res.status(400).json({ success: false, message: '无效的关卡索引' });
@@ -3585,7 +3750,7 @@ app.post('/api/endless/complete', (req, res) => {
   const scoreGradient = getScoreGradient(levelIndex);
   
   user.hp = user.maxHp;
-  saveGameData();
+  saveGameData(req.deviceId);
   
   res.json({
     success: true,
@@ -3610,8 +3775,9 @@ app.post('/api/endless/complete', (req, res) => {
 });
 
 app.post('/api/endless/fail', (req, res) => {
+  const currentData = getCurrentSaveData(req.deviceId);
   const { levelIndex, timeUsed, totalCoinsEarned, totalExpEarned, totalScoreEarned, levelCompleted } = req.body;
-  const user = mockData.user;
+  const user = currentData.user;
   
   user.endlessTotalRuns = (user.endlessTotalRuns || 0) + 1;
   
@@ -3648,7 +3814,7 @@ app.post('/api/endless/fail', (req, res) => {
   }
   
   user.hp = user.maxHp;
-  saveGameData();
+  saveGameData(req.deviceId);
   
   res.json({
     success: true,
@@ -3666,7 +3832,7 @@ app.post('/api/endless/fail', (req, res) => {
 });
 
 app.post('/api/save', (req, res) => {
-  const success = saveGameData();
+  const success = saveGameData(req.deviceId);
   res.json({
     success,
     data: {
@@ -3676,13 +3842,14 @@ app.post('/api/save', (req, res) => {
 });
 
 app.get('/api/save/status', (req, res) => {
-  const exists = fs.existsSync(SAVE_FILE);
+  const saveFile = getSaveFilePath(req.deviceId);
+  const exists = fs.existsSync(saveFile);
   let saveInfo = null;
   
   if (exists) {
     try {
-      const stats = fs.statSync(SAVE_FILE);
-      const data = JSON.parse(fs.readFileSync(SAVE_FILE, 'utf8'));
+      const stats = fs.statSync(saveFile);
+      const data = JSON.parse(fs.readFileSync(saveFile, 'utf8'));
       saveInfo = {
         exists: true,
         savedAt: data.savedAt,
@@ -3703,7 +3870,7 @@ app.get('/api/save/status', (req, res) => {
 });
 
 app.get('/api/save/integrity', (req, res) => {
-  const result = checkSaveIntegrity();
+  const result = checkSaveIntegrity(req.deviceId);
   res.json({
     success: true,
     data: result
@@ -3711,7 +3878,7 @@ app.get('/api/save/integrity', (req, res) => {
 });
 
 app.get('/api/backups', (req, res) => {
-  const backups = getBackupList();
+  const backups = getBackupList(req.deviceId);
   res.json({
     success: true,
     data: backups
@@ -3720,7 +3887,7 @@ app.get('/api/backups', (req, res) => {
 
 app.post('/api/backups/create', (req, res) => {
   const { name } = req.body;
-  const result = createBackup(name);
+  const result = createBackup(name, req.deviceId);
   res.json(result);
 });
 
@@ -3729,7 +3896,7 @@ app.post('/api/backups/restore', (req, res) => {
   if (!filename) {
     return res.status(400).json({ success: false, error: '缺少备份文件名' });
   }
-  const result = restoreBackup(filename);
+  const result = restoreBackup(filename, req.deviceId);
   res.json(result);
 });
 
@@ -3738,7 +3905,7 @@ app.delete('/api/backups/:filename', (req, res) => {
   if (!filename) {
     return res.status(400).json({ success: false, error: '缺少备份文件名' });
   }
-  const result = deleteBackup(filename);
+  const result = deleteBackup(filename, req.deviceId);
   res.json(result);
 });
 

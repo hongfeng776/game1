@@ -1,4 +1,5 @@
 import axios from 'axios';
+import saveService from './saveService';
 
 const api = axios.create({
   baseURL: '/api',
@@ -7,6 +8,29 @@ const api = axios.create({
     'Content-Type': 'application/json',
   }
 });
+
+api.interceptors.request.use(
+  config => {
+    const deviceId = saveService.getDeviceId();
+    if (deviceId) {
+      if (config.method === 'get') {
+        config.params = config.params || {};
+        config.params.deviceId = deviceId;
+      } else {
+        if (config.data && typeof config.data === 'object') {
+          config.data.deviceId = deviceId;
+        } else {
+          config.data = { deviceId };
+        }
+      }
+    }
+    return config;
+  },
+  error => {
+    console.error('API Request Error:', error);
+    return Promise.reject(error);
+  }
+);
 
 api.interceptors.response.use(
   response => response.data,

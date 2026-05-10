@@ -204,6 +204,171 @@
   font-size: 1.1rem;
 }
 
+.backup-create-section {
+  margin-bottom: 25px;
+}
+
+.backup-description {
+  color: #666;
+  margin-bottom: 15px;
+  line-height: 1.5;
+}
+
+.backup-input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.backup-input {
+  flex: 1;
+  padding: 12px 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  font-size: 1rem;
+  color: #333;
+  transition: border-color 0.3s;
+}
+
+.backup-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.backup-input::placeholder {
+  color: #aaa;
+}
+
+.backup-list-section {
+  border-top: 2px solid #eee;
+  padding-top: 20px;
+}
+
+.backup-list-title {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 1rem;
+}
+
+.loading-text,
+.empty-backups {
+  text-align: center;
+  color: #999;
+  padding: 30px 0;
+}
+
+.backup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.backup-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  border-radius: 12px;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s;
+}
+
+.backup-item:hover {
+  border-color: #667eea;
+  transform: translateX(3px);
+}
+
+.backup-item.backup-corrupted {
+  background: linear-gradient(135deg, #fff3f3, #ffe0e0);
+  border-color: #ffcdd2;
+}
+
+.backup-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.backup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.backup-name {
+  font-weight: bold;
+  color: #333;
+  font-size: 1rem;
+}
+
+.corrupted-badge {
+  background: #ff5252;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.backup-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.backup-detail {
+  display: inline-flex;
+  align-items: center;
+}
+
+.backup-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: 15px;
+}
+
+.btn-small {
+  padding: 8px 16px;
+  font-size: 0.85rem;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+  color: white;
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #ee5a5a, #dd4949);
+}
+
+.message-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 15px 30px;
+  border-radius: 25px;
+  font-weight: bold;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  animation: slideDown 0.3s ease;
+}
+
+.message-success {
+  background: linear-gradient(135deg, #4ECDC4, #44A08D);
+  color: white;
+}
+
+.message-error {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+  color: white;
+}
+
 @media (max-width: 768px) {
   .settings-card {
     margin: 0 15px 20px;
@@ -229,5 +394,28 @@
     width: 100%;
     margin: 0 15px;
     max-width: calc(100% - 30px);
+  }
+  
+  .backup-input-group {
+    flex-direction: column;
+  }
+  
+  .backup-input {
+    width: 100%;
+  }
+  
+  .backup-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .backup-actions {
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+  
+  .backup-details {
+    gap: 8px;
   }
 }

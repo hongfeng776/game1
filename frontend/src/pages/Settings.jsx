@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { settingsAPI, backupAPI, userAPI } from '../services/api'
+import { useGameContext } from '../context/GameContext'
 import '../styles/Settings.css'
 
 function formatDate(isoString) {
@@ -24,6 +25,7 @@ function formatSize(bytes) {
 }
 
 function Settings() {
+  const { updateUser, refreshUser } = useGameContext()
   const [settings, setSettings] = useState({
     musicVolume: 80,
     sfxVolume: 70,
@@ -113,6 +115,8 @@ function Settings() {
         const userRes = await userAPI.getUser()
         if (userRes.success) {
           console.log('用户数据已更新:', userRes.data)
+          updateUser(userRes.data)
+          await refreshUser()
         }
       } else {
         showMessage('error', res.error || '恢复备份失败')
